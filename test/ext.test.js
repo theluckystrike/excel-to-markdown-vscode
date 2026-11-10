@@ -42,6 +42,9 @@ test('activation registers the commands and makes no network call, no message, n
     s.ext.activate(s.context);
     for (const c of ['paste', 'csvToTable', 'tableToCsv', 'tableToTsv', 'formatTable', 'openSpreadsheet', 'openSample', 'addKeybinding', 'workbookToMarkdown', 'tablesToXlsx', 'getPro', 'payWithPayPal', 'enterLicenseKey', 'payByCard']) assert.ok(s.commands.has(`excelToMarkdown.${c}`), c);
     assert.ok(s.providers.has('excelToMarkdown.preview'));
+    // Add a keybinding opens Keyboard Shortcuts filtered to exactly the paste command (no default key is set)
+    await run(s, 'addKeybinding');
+    assert.deepStrictEqual(s.log.commands.at(-1), ['workbench.action.openGlobalKeybindings', '@command:excelToMarkdown.paste']);
     const v = await openPreview(s, SAMPLE);
     assert.strictEqual(v.last('init').sheets.length, 3);
     assert.deepStrictEqual(v.last('init').pro.tries, { batch: 3, xlsx: 3, formats: 3 });

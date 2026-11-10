@@ -462,7 +462,7 @@ function activate(context) {
     }
     await vscode.commands.executeCommand('vscode.openWith', vscode.Uri.joinPath(context.extensionUri, 'samples', 'sample.xlsx'), VIEW_TYPE);
   });
-  reg(`${PREFIX}.addKeybinding`, () => vscode.commands.executeCommand('workbench.action.openGlobalKeybindings', `${PREFIX}.paste`));
+  reg(`${PREFIX}.addKeybinding`, () => vscode.commands.executeCommand('workbench.action.openGlobalKeybindings', `@command:${PREFIX}.paste`));
   reg(`${PREFIX}.openWalkthrough`, () => vscode.commands.executeCommand('workbench.action.openWalkthrough', `${EXT_ID}#${PREFIX}.start`, false));
   reg(`${PREFIX}.workbookToMarkdown`, workbookToMarkdown);
   reg(`${PREFIX}.tablesToXlsx`, tablesToXlsx);
