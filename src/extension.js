@@ -294,6 +294,14 @@ class Provider {
 /** Pro 3: the preview shows cells as Excel shows them. One try per turn-on, counted after the table is on screen. */
 async function toggleFormats(v, on) {
   if (!on) { v.state.formats = false; await v.render(); return; }
+  let cells = 0;
+  try { cells = v.model ? v.rows().rows.length : 0; } catch { cells = 0; }
+  if (!cells) { // nothing to format: the toggle goes back off and no try is used
+    v.state.formats = false;
+    await v.post({ type: 'pro', pro: proState(), formats: false });
+    await v.post({ type: 'notice', text: 'This sheet is empty, so there are no formats to keep. No free try was used.' });
+    return;
+  }
   if (!(await pro.allowed('formats'))) { v.state.formats = false; await v.post({ type: 'pro', pro: proState(), formats: false }); return; }
   v.state.formats = true;
   await v.render();
@@ -318,6 +326,7 @@ function workbookMarkdown(model, title, o = {}) {
 
 async function workbookFromViewer(v) {
   if (!v.model) return;
+  if (!workbookMarkdown(v.model, v.name).sheets) { vscode.window.showInformationMessage(`Every sheet of ${v.name} is empty. No file was written and no free try was used.`); return; }
   if (!(await pro.allowed('batch'))) return;
   const base = v.uri.scheme === 'file' ? vscode.Uri.file(v.uri.fsPath.replace(/\.[^./\\]+$/, '') + '.md') : undefined;
   const target = await vscode.window.showSaveDialog({ defaultUri: base, filters: { Markdown: ['md'] }, title: `Save every sheet of ${v.name} as Markdown` });
@@ -379,7 +388,7 @@ async function workbookToMarkdown(uri, uris) {
     if (!a) return; // cancelled: no try used
     replace = a === 'Replace them';
   }
-  const written = [], failed = [];
+  const written = [], failed = [], empty = [];
   let sheetsDone = 0;
   await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Converting workbooks to Markdown', cancellable: true }, async (progress, token) => {
     for (let i = 0; i < files.length && !token.isCancellationRequested; i++) {
@@ -388,14 +397,15 @@ async function workbookToMarkdown(uri, uris) {
       try {
         const model = await runJob({ op: 'read', file: files[i], name: files[i] });
         const { text, sheets } = workbookMarkdown(model, path.basename(files[i]));
+        if (!sheets) { empty.push(path.basename(files[i])); continue; } // no cells: no file
         await fs.promises.writeFile(targets[i], text, 'utf8');
         written.push(targets[i]); sheetsDone += sheets;
       } catch (e) { failed.push(`${path.basename(files[i])}: ${e.message}`); }
     }
   });
   if (written.length) { await pro.produced('batch'); refreshPro(); }
-  const msg = `Wrote ${written.length} Markdown file${written.length === 1 ? '' : 's'} (${sheetsDone} sheet${sheetsDone === 1 ? '' : 's'})${failed.length ? `; ${failed.length} workbook${failed.length === 1 ? '' : 's'} could not be read (${failed[0].slice(0, 160)})` : ''}.`;
-  if (!written.length) { vscode.window.showWarningMessage(msg); return; }
+  const msg = `Wrote ${written.length} Markdown file${written.length === 1 ? '' : 's'} (${sheetsDone} sheet${sheetsDone === 1 ? '' : 's'})${empty.length ? `; ${empty.length} workbook${empty.length === 1 ? ' has' : 's have'} no cells (${empty.slice(0, 3).join(', ')}${empty.length > 3 ? ', ...' : ''})` : ''}${failed.length ? `; ${failed.length} workbook${failed.length === 1 ? '' : 's'} could not be read (${failed[0].slice(0, 160)})` : ''}.`;
+  if (!written.length) { vscode.window.showWarningMessage(`${msg} No free try was used.`); return; }
   const open = await vscode.window.showInformationMessage(msg, 'Open the first one');
   if (open) await vscode.window.showTextDocument(vscode.Uri.file(written[0]), { preview: false });
 }

@@ -1,5 +1,7 @@
 # Excel to Markdown Table & CSV to Markdown for VS Code
 
+Zovo Pro: USD 19 once, every Zovo tool. Converting whole workbooks, saving Markdown tables as .xlsx and keeping Excel formats are Pro, with 3 free tries each; paste, convert and preview stay free.
+
 Copy cells in Excel, Google Sheets, Numbers or LibreOffice Calc and paste them into a Markdown file as a clean Markdown table. Convert CSV and TSV to Markdown and back, line up the columns of an existing table, and open `.xlsx`, `.xls`, `.ods` and `.csv` files to copy a whole sheet or a range such as `A1:D20`. Works offline, with no network calls.
 
 ![Paste as Markdown Table: cells copied from a spreadsheet become an aligned Markdown table at the cursor](images/paste-table.png)

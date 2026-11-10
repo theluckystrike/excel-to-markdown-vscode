@@ -284,6 +284,49 @@ test('Pro "whole workbook" from the palette with a preview open: it asks for fil
   } finally { s.restore(); }
 });
 
+test('Pro tools on empty workbooks and an empty sheet: no file, no try, a message (convert, whole workbook button, Excel formats)', async () => {
+  const s = boot();
+  try {
+    const blank = () => { const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([]), 'Sheet1'); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([]), 'Sheet2'); return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }); };
+    const root = path.join(dir, 'empty');
+    const E1 = put('empty/all-empty.xlsx', blank());
+    put('empty/sub/also-empty.xlsx', blank());
+    // (1) Convert workbooks: a folder of 2 all-empty workbooks writes nothing and uses no try
+    await run(s, 'workbookToMarkdown', s.vscode.Uri.file(root));
+    assert.ok(!fs.existsSync(path.join(root, 'all-empty.md')) && !fs.existsSync(path.join(root, 'sub', 'also-empty.md')), 'no heading-only .md');
+    assert.match(s.log.warn.at(-1).text, /^Wrote 0 Markdown files \(0 sheets\); 2 workbooks have no cells \(all-empty\.xlsx, also-empty\.xlsx\)\. No free try was used\.$/);
+    assert.strictEqual(s.state.get('excelToMarkdown.proTrial'), undefined, 'no try');
+    // a real workbook next to an empty one: 1 file, 1 try, the empty one named
+    put('empty/real.xlsx', book([['a', 'b'], [1, 2]], 'Data'));
+    await run(s, 'workbookToMarkdown', s.vscode.Uri.file(root));
+    assert.match(fs.readFileSync(path.join(root, 'real.md'), 'utf8'), /## Data/);
+    assert.match(s.log.info.at(-1).text, /^Wrote 1 Markdown file \(1 sheet\); 2 workbooks have no cells \(all-empty\.xlsx, also-empty\.xlsx\)\.$/);
+    assert.strictEqual(s.state.get('excelToMarkdown.proTrial').batch, 1);
+    // (2) the preview button on an all-empty workbook: no save dialog, no file, no try
+    const v = await openPreview(s, E1);
+    const saves = s.log.saved.length;
+    await v.send({ type: 'tool', tool: 'workbook' });
+    assert.strictEqual(s.log.saved.length, saves, 'no file written');
+    assert.strictEqual(s.log.info.at(-1).text, 'Every sheet of all-empty.xlsx is empty. No file was written and no free try was used.');
+    assert.strictEqual(s.state.get('excelToMarkdown.proTrial').batch, 1);
+    // (3) Excel formats on an empty sheet: the toggle goes back off, no try; on a sheet with cells it counts
+    await v.send({ type: 'tool', tool: 'formats', on: true });
+    assert.strictEqual(v.last('pro').formats, false);
+    assert.strictEqual(v.last('notice').text, 'This sheet is empty, so there are no formats to keep. No free try was used.');
+    assert.strictEqual(s.state.get('excelToMarkdown.proTrial').formats, undefined, 'no formats try');
+    const mixed = put('empty/mixed.xlsx', (() => { const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['p', 'q'], [1, 2]]), 'Full'); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([]), 'Blank'); return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }); })());
+    const m = await openPreview(s, mixed);
+    await m.send({ type: 'render', sheet: 1 });
+    await m.send({ type: 'tool', tool: 'formats', on: true });
+    assert.strictEqual(s.state.get('excelToMarkdown.proTrial').formats, undefined, 'empty sheet: no try');
+    assert.ok(!m.last('output').state.formats, 'formats stay off, so they do not carry over to another sheet for free');
+    await m.send({ type: 'render', sheet: 0 });
+    await m.send({ type: 'tool', tool: 'formats', on: true });
+    assert.ok(m.last('output').state.formats);
+    assert.strictEqual(s.state.get('excelToMarkdown.proTrial').formats, 1, 'a sheet with cells uses 1 try');
+  } finally { s.restore(); }
+});
+
 test('Pro "Markdown tables to .xlsx": no table uses no try, Escape keeps it, 3 saves, the 4th shows the panel', async () => {
   const s = boot();
   try {
