@@ -41,7 +41,7 @@ class Editor {
 }
 
 function create() {
-  const log = { info: [], warn: [], error: [], status: [], opened: [], external: [], commands: [], posted: [], saved: [], progress: [], clipboardWrites: [] };
+  const log = { info: [], warn: [], error: [], status: [], opened: [], external: [], commands: [], posted: [], saved: [], progress: [], clipboardWrites: [], openDialogs: [] };
   const ui = { open: [], save: [], input: [], quick: [], info: [], warn: [] };
   const commands = new Map();
   const providers = new Map();
@@ -95,11 +95,18 @@ function create() {
       registerUriHandler: () => ({ dispose() {} }),
       showInformationMessage: msg('info'), showWarningMessage: msg('warn'), showErrorMessage: msg('error'),
       setStatusBarMessage: (t) => { log.status.push(t); return { dispose() {} }; },
-      showOpenDialog: async () => nextOf(ui.open, undefined),
+      showOpenDialog: async (o) => { log.openDialogs.push(o); return nextOf(ui.open, undefined); },
       showSaveDialog: async () => nextOf(ui.save, undefined),
       showInputBox: async () => nextOf(ui.input, undefined),
       showQuickPick: async (items) => { const f = nextOf(ui.quick, undefined); return typeof f === 'function' ? f(await items) : f; },
-      showTextDocument: async (d) => { log.opened.push(d); return {}; },
+      showTextDocument: async (d, o) => {
+        log.opened.push(d);
+        if (!(d instanceof Doc)) return {};
+        const ed = new Editor(d, o && o.selection ? new Selection(o.selection.start.line, o.selection.start.character, o.selection.end.line, o.selection.end.character) : undefined);
+        vscode.window.activeTextEditor = ed; vscode.window.visibleTextEditors = [ed];
+        return ed;
+      },
+      onDidChangeTextEditorSelection: () => ({ dispose() {} }),
       withProgress: async (o, fn) => { log.progress.push(o.title); return fn({ report: (r) => log.progress.push(r.message) }, { isCancellationRequested: false, onCancellationRequested: () => ({ dispose() {} }) }); },
       createOutputChannel: () => ({ appendLine() {}, dispose() {} }),
     },

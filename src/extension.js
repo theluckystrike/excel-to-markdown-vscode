@@ -26,7 +26,9 @@ const GRID_ROWS = 200, GRID_COLS = 50, SHOW_CHARS = 200000;
 let rating = { success() {}, failure() {} };
 let pro;
 let clip;
-let lastTextEditor = null;
+let lastText = null; // { doc, sel, column } of the last text editor the user worked in
+const sampleDocs = new WeakSet(); // the walkthrough's try-it file: work done there does not count for the rating ask
+const ratingArg = (ed) => (ed && sampleDocs.has(ed.document) ? { sample: true } : undefined);
 const viewers = new Set();
 let active = null;
 
@@ -49,16 +51,22 @@ function tableOptions(over = {}) {
 
 // ---------------- text editor commands ----------------
 
-function targetEditor() {
+function remember(ed) { if (ed && ed.document) lastText = { doc: ed.document, sel: ed.selection, column: ed.viewColumn }; }
+
+/** The editor to insert into: the active text editor, else the last one (brought back to the front when `reveal`). */
+async function targetEditor(reveal) {
   const ed = vscode.window.activeTextEditor;
   if (ed) return ed;
-  if (lastTextEditor && vscode.window.visibleTextEditors && vscode.window.visibleTextEditors.includes(lastTextEditor)) return lastTextEditor;
-  return null;
+  if (!lastText || lastText.doc.isClosed) return null;
+  const vis = (vscode.window.visibleTextEditors || []).find((e) => e.document === lastText.doc);
+  if (vis) return vis;
+  if (!reveal) return null;
+  return vscode.window.showTextDocument(lastText.doc, { viewColumn: lastText.column, selection: lastText.sel, preview: false });
 }
 
 /** Inserts a block (a table) at every cursor of the editor, on lines of its own. Opens a new Markdown file if none. */
-async function insertBlock(text, editor) {
-  const ed = editor || targetEditor();
+async function insertBlock(text, editor, reveal = true) {
+  const ed = editor || (reveal ? await targetEditor(true) : null);
   if (!ed) {
     const doc = await vscode.workspace.openTextDocument({ language: 'markdown', content: text });
     await vscode.window.showTextDocument(doc, { preview: false });
@@ -89,9 +97,10 @@ async function pasteAsTable() {
   try { parsed = T.parseDelimited(text.replace(/\r?\n$/, '')); } catch (e) { vscode.window.showWarningMessage(e.message); return; }
   const md = T.toMarkdown(parsed.rows, tableOptions());
   if (!md) { vscode.window.showInformationMessage('The clipboard text has no cells.'); return; }
-  await insertBlock(md);
+  const ed = await targetEditor(false);
+  await insertBlock(md, ed, false);
   vscode.window.setStatusBarMessage(`Markdown table: ${parsed.columns} column${parsed.columns === 1 ? '' : 's'}, ${parsed.rows.length} row${parsed.rows.length === 1 ? '' : 's'}.`, 5000);
-  rating.success();
+  rating.success(ratingArg(ed));
 }
 
 /** The Markdown table around the cursor, or the selection: { range, text } or null. */
@@ -154,7 +163,7 @@ async function csvToTable() {
     await ed.edit((eb) => eb.replace(sel, md.replace(/\n$/, '')));
   }
   vscode.window.setStatusBarMessage(`Markdown table: ${parsed.columns} columns, ${parsed.rows.length} rows.`, 5000);
-  rating.success();
+  rating.success(ratingArg(ed));
 }
 
 // ---------------- workbook preview ----------------
@@ -168,7 +177,7 @@ async function readModel(uri) {
   return runJob({ op: 'read', buffer: buf, name: uri.path }, { transfer: [buf] });
 }
 
-const MEDIA_ERRORS = new Set(['TOO_BIG', 'EMPTY', 'ENOENT', 'NOT_FILE']);
+const MEDIA_ERRORS = new Set(['TOO_BIG', 'EMPTY', 'ENOENT', 'NOT_FILE', 'PASSWORD']);
 
 class Viewer {
   constructor(uri, panel) {
@@ -341,13 +350,15 @@ async function listWorkbooks(root) {
   return out.sort();
 }
 
-/** Pro 1 from the Explorer or the palette: one workbook, several, or every workbook of a folder -> .md files. */
+/** Pro 1 from the Explorer or the palette: one workbook, several, or every workbook of a folder -> .md files.
+ *  From the palette it always asks which files or folder (the preview's own button converts the open workbook); the
+ *  dialog starts in the folder of the open workbook, if one is open. */
 async function workbookToMarkdown(uri, uris) {
   let picks = Array.isArray(uris) && uris.length ? uris : uri && uri.fsPath ? [uri] : null;
-  if (!picks && active && active.uri.scheme === 'file' && WORKBOOK_RE.test(active.uri.fsPath)) picks = [active.uri];
   if (!(await pro.allowed('batch'))) return;
   if (!picks) {
-    const p = await vscode.window.showOpenDialog({ canSelectFiles: true, canSelectFolders: true, canSelectMany: true, openLabel: 'Convert', title: 'Workbooks or a folder to convert to Markdown', filters: { Workbooks: ['xlsx', 'xlsm', 'xlsb', 'xls', 'ods'] } });
+    const near = active && active.uri.scheme === 'file' ? vscode.Uri.file(path.dirname(active.uri.fsPath)) : (vscode.workspace.workspaceFolders || [])[0] && vscode.workspace.workspaceFolders[0].uri;
+    const p = await vscode.window.showOpenDialog({ defaultUri: near || undefined, canSelectFiles: true, canSelectFolders: true, canSelectMany: true, openLabel: 'Convert', title: 'Workbooks or a folder to convert to Markdown', filters: { Workbooks: ['xlsx', 'xlsm', 'xlsb', 'xls', 'ods'] } });
     if (!p || !p.length) return; // cancelled: no try used
     picks = p;
   }
@@ -422,8 +433,9 @@ function activate(context) {
   pro = createPro({ vscode, context });
   context.subscriptions.push(pro.onDidChange(() => refreshPro()));
   context.subscriptions.push(vscode.window.registerCustomEditorProvider(VIEW_TYPE, new Provider(context), { supportsMultipleEditorsPerDocument: true, webviewOptions: { retainContextWhenHidden: true } }));
-  if (vscode.window.activeTextEditor) lastTextEditor = vscode.window.activeTextEditor;
-  context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor((e) => { if (e) lastTextEditor = e; }));
+  remember(vscode.window.activeTextEditor);
+  context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor((e) => remember(e)));
+  context.subscriptions.push(vscode.window.onDidChangeTextEditorSelection((e) => { if (lastText && e.textEditor.document === lastText.doc) lastText.sel = e.selections[0]; }));
   const reg = (id, fn) => context.subscriptions.push(vscode.commands.registerCommand(id, (...a) => Promise.resolve(fn(...a)).catch((e) => vscode.window.showWarningMessage(String((e && e.message) || e)))));
   reg(`${PREFIX}.paste`, pasteAsTable);
   reg(`${PREFIX}.csvToTable`, csvToTable);
@@ -444,6 +456,7 @@ function activate(context) {
     if (which === 'csv') {
       const content = fs.readFileSync(path.join(context.extensionPath || context.extensionUri.fsPath, 'samples', 'try-it.md'), 'utf8');
       const doc = await vscode.workspace.openTextDocument({ language: 'markdown', content });
+      sampleDocs.add(doc);
       await vscode.window.showTextDocument(doc, { preview: false });
       return;
     }

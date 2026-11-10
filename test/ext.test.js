@@ -156,6 +156,11 @@ test('preview: sheets, range, header, formats of output; Copy writes the full te
     s.vscode.window.activeTextEditor = undefined;
     await v.send({ type: 'insert' });
     assert.match(target.document.text, /^# Report\n\| Name +\| Office/);
+    // the text editor is hidden behind the preview: Insert brings it back and inserts at its cursor
+    s.vscode.window.activeTextEditor = undefined; s.vscode.window.visibleTextEditors = [];
+    await v.send({ type: 'insert' });
+    assert.strictEqual((target.document.text.match(/\| Name +\| Office/g) || []).length, 2);
+    assert.strictEqual(s.log.opened.at(-1), target.document);
     await v.send({ type: 'rendered' });
   } finally { s.restore(); }
 });
@@ -249,6 +254,29 @@ test('Pro "whole workbook" on a folder: every workbook gets a .md file; existing
     s.ui.warn.push(undefined);
     await run(s, 'workbookToMarkdown', s.vscode.Uri.file(root));
     assert.match(s.log.warn.at(-1).text, /2 of the 3 Markdown files exist already/);
+    assert.strictEqual(s.state.get('excelToMarkdown.proTrial').batch, 1);
+  } finally { s.restore(); }
+});
+
+test('Pro "whole workbook" from the palette with a preview open: it asks for files or a folder (starting next to the open workbook); Escape uses no try; a picked folder converts', async () => {
+  const s = boot();
+  try {
+    const root = path.join(dir, 'palette');
+    put('palette/q1.xlsx', book([['a', 'b'], [1, 2]], 'Q1'));
+    put('palette/q2.xlsx', book([['c'], [3]], 'Q2'));
+    await openPreview(s, SAMPLE);
+    s.ui.open.push(undefined);
+    await run(s, 'workbookToMarkdown');
+    assert.strictEqual(s.log.openDialogs.length, 1, 'the palette command asks instead of taking the open workbook');
+    assert.strictEqual(s.log.openDialogs[0].defaultUri.fsPath, path.dirname(SAMPLE));
+    assert.ok(s.log.openDialogs[0].canSelectFolders);
+    assert.ok(!fs.existsSync(SAMPLE.replace(/\.xlsx$/, '.md')));
+    assert.strictEqual(s.state.get('excelToMarkdown.proTrial'), undefined, 'Escape uses no try');
+    s.ui.open.push([s.vscode.Uri.file(root)]);
+    await run(s, 'workbookToMarkdown');
+    assert.match(fs.readFileSync(path.join(root, 'q1.md'), 'utf8'), /## Q1/);
+    assert.match(fs.readFileSync(path.join(root, 'q2.md'), 'utf8'), /## Q2/);
+    assert.match(s.log.info.at(-1).text, /^Wrote 2 Markdown files \(2 sheets\)\.$/);
     assert.strictEqual(s.state.get('excelToMarkdown.proTrial').batch, 1);
   } finally { s.restore(); }
 });

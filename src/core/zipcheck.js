@@ -44,11 +44,16 @@ function checkZip(buf, limits = {}) {
     entries.push({ name, method, csize, usize, off });
   }
   // inflate each entry with the claimed size as the cap
+  let manifest = '';
   for (const e of entries) {
     if (e.off + 30 > buf.length || buf.readUInt32LE(e.off) !== 0x04034b50) throw new ZipError(`The part ${e.name.slice(0, 80)} is damaged.`);
     const start = e.off + 30 + buf.readUInt16LE(e.off + 26) + buf.readUInt16LE(e.off + 28);
     if (start + e.csize > buf.length) throw new ZipError(`The part ${e.name.slice(0, 80)} is cut off.`);
-    if (e.method === 0) { if (e.csize !== e.usize) throw new ZipError(`The part ${e.name.slice(0, 80)} is damaged.`); continue; }
+    if (e.method === 0) {
+      if (e.csize !== e.usize) throw new ZipError(`The part ${e.name.slice(0, 80)} is damaged.`);
+      if (e.name === 'META-INF/manifest.xml' && e.usize < 1048576) manifest = buf.toString('utf8', start, start + e.csize);
+      continue;
+    }
     if (e.method !== 8) throw new ZipError(`The part ${e.name.slice(0, 80)} uses a zip method (${e.method}) that Excel does not write.`);
     let out;
     try { out = zlib.inflateRawSync(buf.subarray(start, start + e.csize), { maxOutputLength: Math.max(1, e.usize + 1) }); } catch (err) {
@@ -56,8 +61,9 @@ function checkZip(buf, limits = {}) {
       throw new ZipError(`The part ${e.name.slice(0, 80)} could not be unpacked: ${err && err.message}`);
     }
     if (out.length > e.usize) throw new ZipError(`The part ${e.name.slice(0, 80)} unpacks to more than it claims. It is not read.`);
+    if (e.name === 'META-INF/manifest.xml' && out.length < 1048576) manifest = out.toString('utf8');
   }
-  return { entries: entries.length, total };
+  return { entries: entries.length, total, manifest };
 }
 
 module.exports = { checkZip, isZip, ZipError, ZIP_LIMITS };

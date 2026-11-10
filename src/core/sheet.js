@@ -11,6 +11,8 @@ const SHEET_LIMITS = { maxFileBytes: 100 * 1024 * 1024, maxCsvBytes: 60 * 1024 *
 const WORKBOOK_EXT = /\.(xlsx|xlsm|xlsb|xls|ods|fods)$/i;
 const TEXT_EXT = /\.(csv|tsv|tab|txt)$/i;
 
+const PASSWORD = 'This workbook is password-protected. Open it in Excel or LibreOffice, remove the password, save it, and open it here again.';
+
 class SheetError extends Error { constructor(m, code = 'SHEET') { super(m); this.code = code; } }
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -67,12 +69,24 @@ function readWorkbook(XLSX, buf, name, limits = {}) {
   if (buf.length > L.maxFileBytes) throw new SheetError(`The file is ${Math.round(buf.length / 1048576)} MB; workbooks up to ${Math.round(L.maxFileBytes / 1048576)} MB are read.`, 'TOO_BIG');
   if (buf.length === 0) throw new SheetError('The file is empty.', 'EMPTY');
   const zip = isZip(buf);
-  if (zip) checkZip(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength));
+  if (zip) {
+    const z = checkZip(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength));
+    if (/encryption-data/.test(z.manifest || '')) throw new SheetError(PASSWORD, 'PASSWORD');
+  }
   else if (/^\.(xlsx|xlsm|ods)$/.test(ext) && !(buf[0] === 0xd0 && buf[1] === 0xcf)) throw new SheetError(`This ${ext} file is not a zip archive, so it is not an Excel or OpenDocument workbook. It may be damaged or renamed.`, 'NOT_WORKBOOK');
+  else if (!(buf[0] === 0xd0 && buf[1] === 0xcf) && !(buf[0] === 0x09 && [0, 2, 4, 8].includes(buf[1])) && !((buf[0] === 0xff && buf[1] === 0xfe) || (buf[0] === 0xfe && buf[1] === 0xff))) {
+    // not zip, not OLE (.xls), not an old BIFF stream: only text formats are left (SpreadsheetML XML, HTML or CSV saved
+    // with an .xls name). Binary data here is not a workbook, so it is refused instead of shown as a garbage sheet.
+    const head = buf.subarray(0, 4096);
+    let bad = 0;
+    for (const b of head) if (b < 9 || (b > 13 && b < 32)) bad++;
+    if (bad > head.length * 0.02) throw new SheetError(`This ${ext || 'file'} file holds binary data that is not a workbook Excel or LibreOffice writes. It may be damaged or renamed.`, 'NOT_WORKBOOK');
+  }
   let wb;
   try {
     wb = XLSX.read(buf, { type: 'buffer', dense: true, cellNF: true, cellText: true, cellDates: false, cellFormula: false, cellHTML: false, cellStyles: false, sheetRows: L.maxRows + 1, WTF: false });
   } catch (e) {
+    if (/password|encrypt/i.test(String(e && e.message))) throw new SheetError(PASSWORD, 'PASSWORD');
     throw new SheetError(`The workbook could not be read: ${String(e && e.message || e).slice(0, 200)}`, 'READ');
   }
   const names = (wb.SheetNames || []).slice(0, L.maxSheets);

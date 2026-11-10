@@ -138,6 +138,12 @@ test('zip bomb caps: a part that unpacks past its claim, a 1000x ratio, too many
   assert.strictEqual((await runJob({ op: 'read', file: good, name: good })).sheets.length, 3);
 });
 
+test('a password-protected OpenDocument workbook (encryption in the manifest) gives a plain message', async () => {
+  const z = zipWith('META-INF/manifest.xml', Buffer.from('<manifest:manifest><manifest:file-entry manifest:full-path="content.xml"><manifest:encryption-data/></manifest:file-entry></manifest:manifest>'));
+  const f = put('locked.ods', z);
+  await assert.rejects(runJob({ op: 'read', file: f, name: f }), (e) => e.code === 'PASSWORD' && /password-protected/.test(e.message));
+});
+
 test('hostile files: empty, renamed text, random bytes, cut workbook, 3,000 columns; each gives a message', async () => {
   const cases = {
     'empty.xlsx': Buffer.alloc(0),
@@ -150,8 +156,8 @@ test('hostile files: empty, renamed text, random bytes, cut workbook, 3,000 colu
     const t0 = Date.now();
     let err = null;
     try { await runJob({ op: 'read', file: f, name: f }, { ms: 15000 }); } catch (e) { err = e; }
-    if (n === 'random.xls' && !err) continue; // SheetJS may read random bytes as a text sheet; any result is fine as long as it ends
     assert.ok(err && err.message.length > 5, n);
+    if (n === 'random.xls') assert.match(err.message, /binary data that is not a workbook/);
     assert.ok(Date.now() - t0 < 15000, n);
   }
   // wide sheet: columns past the cap are cut with a note
