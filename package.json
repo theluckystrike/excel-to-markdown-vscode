@@ -1,0 +1,361 @@
+{
+  "name": "zovo-excel-to-markdown",
+  "displayName": "Excel to Markdown Table & CSV to Markdown (Paste from Excel, Google Sheets, XLSX)",
+  "description": "Excel to Markdown table converter: paste cells copied from Excel, Google Sheets, Numbers or LibreOffice as a Markdown table, convert CSV to Markdown and back, format tables, and open .xlsx, .xls, .ods and .csv files to copy a sheet or range as Markdown. Offline, no network.",
+  "version": "0.1.0",
+  "publisher": "zovo",
+  "license": "MIT",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#16352A",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/theluckystrike/excel-to-markdown-vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/theluckystrike/excel-to-markdown-vscode/issues"
+  },
+  "homepage": "https://github.com/theluckystrike/excel-to-markdown-vscode#readme",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Formatters",
+    "Data Science",
+    "Other"
+  ],
+  "keywords": [
+    "excel to markdown",
+    "excel to markdown table",
+    "csv to markdown",
+    "markdown table",
+    "paste markdown table",
+    "table to markdown",
+    "markdown table generator",
+    "copy excel to markdown",
+    "markdown table formatter",
+    "paste excel",
+    "google sheets to markdown",
+    "xlsx to markdown",
+    "tsv to markdown",
+    "markdown to csv",
+    "markdown table to excel",
+    "excel",
+    "csv",
+    "tsv",
+    "xlsx",
+    "markdown",
+    "table",
+    "asciidoc table",
+    "jira table",
+    "html table"
+  ],
+  "main": "./src/extension.js",
+  "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "excelToMarkdown.preview",
+        "displayName": "Excel to Markdown Table",
+        "selector": [
+          {
+            "filenamePattern": "*.xlsx"
+          },
+          {
+            "filenamePattern": "*.xlsm"
+          },
+          {
+            "filenamePattern": "*.xlsb"
+          },
+          {
+            "filenamePattern": "*.xls"
+          },
+          {
+            "filenamePattern": "*.ods"
+          },
+          {
+            "filenamePattern": "*.csv"
+          },
+          {
+            "filenamePattern": "*.tsv"
+          }
+        ],
+        "priority": "option"
+      }
+    ],
+    "commands": [
+      {
+        "command": "excelToMarkdown.paste",
+        "title": "Paste as Markdown Table",
+        "category": "Excel to Markdown",
+        "icon": "$(table)"
+      },
+      {
+        "command": "excelToMarkdown.csvToTable",
+        "title": "Convert CSV/TSV to Markdown Table",
+        "category": "Excel to Markdown"
+      },
+      {
+        "command": "excelToMarkdown.tableToCsv",
+        "title": "Convert Markdown Table to CSV",
+        "category": "Excel to Markdown"
+      },
+      {
+        "command": "excelToMarkdown.tableToTsv",
+        "title": "Convert Markdown Table to TSV",
+        "category": "Excel to Markdown"
+      },
+      {
+        "command": "excelToMarkdown.formatTable",
+        "title": "Format Markdown Table",
+        "category": "Excel to Markdown"
+      },
+      {
+        "command": "excelToMarkdown.openSpreadsheet",
+        "title": "Open Spreadsheet as Markdown Table",
+        "category": "Excel to Markdown",
+        "icon": "$(table)"
+      },
+      {
+        "command": "excelToMarkdown.openSample",
+        "title": "Open the sample workbook",
+        "category": "Excel to Markdown"
+      },
+      {
+        "command": "excelToMarkdown.addKeybinding",
+        "title": "Add a keybinding for Paste as Markdown Table",
+        "category": "Excel to Markdown"
+      },
+      {
+        "command": "excelToMarkdown.openWalkthrough",
+        "title": "Get started",
+        "category": "Excel to Markdown"
+      },
+      {
+        "command": "excelToMarkdown.workbookToMarkdown",
+        "title": "Convert workbooks to Markdown files (Pro)",
+        "category": "Excel to Markdown"
+      },
+      {
+        "command": "excelToMarkdown.tablesToXlsx",
+        "title": "Save Markdown tables as an Excel .xlsx file (Pro)",
+        "category": "Excel to Markdown"
+      },
+      {
+        "command": "excelToMarkdown.getPro",
+        "title": "Get Zovo Pro (USD 19 once, all 22 Zovo extensions)",
+        "category": "Zovo Pro"
+      },
+      {
+        "command": "excelToMarkdown.payWithPayPal",
+        "title": "Pay for Zovo Pro with PayPal (USD 19, team of 5 USD 59)",
+        "category": "Zovo Pro"
+      },
+      {
+        "command": "excelToMarkdown.unlockWithSponsors",
+        "title": "I already paid: unlock with GitHub Sponsors",
+        "category": "Zovo Pro"
+      },
+      {
+        "command": "excelToMarkdown.enterLicenseKey",
+        "title": "Enter Zovo Pro license key",
+        "category": "Zovo Pro"
+      },
+      {
+        "command": "excelToMarkdown.removeLicense",
+        "title": "Remove Zovo Pro from this editor",
+        "category": "Zovo Pro"
+      },
+      {
+        "command": "excelToMarkdown.payByCard",
+        "title": "Pay for Zovo Pro by card (USD 19)",
+        "category": "Zovo Pro"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "excelToMarkdown.paste",
+          "when": "editorLangId == markdown && !editorReadonly",
+          "group": "9_cutcopypaste@90"
+        },
+        {
+          "command": "excelToMarkdown.formatTable",
+          "when": "editorLangId == markdown && !editorReadonly",
+          "group": "1_modification@90"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "excelToMarkdown.openSpreadsheet",
+          "when": "resourceExtname =~ /^\\.(xlsx|xlsm|xlsb|xls|ods|csv|tsv)$/i",
+          "group": "navigation@45"
+        },
+        {
+          "command": "excelToMarkdown.workbookToMarkdown",
+          "when": "(explorerResourceIsFolder || resourceExtname =~ /^\\.(xlsx|xlsm|xlsb|xls|ods)$/i) && config.excelToMarkdown.showProTools",
+          "group": "7_modification@45"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "excelToMarkdown.openSpreadsheet",
+          "when": "resourceExtname =~ /^\\.(csv|tsv)$/i && activeEditor == workbench.editors.files.textFileEditor",
+          "group": "navigation@90"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "excelToMarkdown.workbookToMarkdown",
+          "when": "config.excelToMarkdown.showProTools"
+        },
+        {
+          "command": "excelToMarkdown.tablesToXlsx",
+          "when": "config.excelToMarkdown.showProTools"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Excel to Markdown",
+      "properties": {
+        "excelToMarkdown.alignment": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "left",
+            "center",
+            "right",
+            "none"
+          ],
+          "enumDescriptions": [
+            "Numbers right, other columns default",
+            "Every column left (:---)",
+            "Every column centred (:---:)",
+            "Every column right (---:)",
+            "No alignment marks (---)"
+          ],
+          "default": "auto",
+          "description": "Column alignment in new Markdown tables."
+        },
+        "excelToMarkdown.headerRow": {
+          "type": "string",
+          "enum": [
+            "first",
+            "empty"
+          ],
+          "enumDescriptions": [
+            "The first row becomes the table header",
+            "An empty header row is added and every row stays in the body"
+          ],
+          "default": "first",
+          "description": "Which row is the header of a new Markdown table."
+        },
+        "excelToMarkdown.maxColumnWidth": {
+          "type": "number",
+          "default": 40,
+          "minimum": 0,
+          "description": "Cells wider than this are not padded and do not widen their column, so one long cell does not stretch every row. 0 pads every cell."
+        },
+        "excelToMarkdown.compact": {
+          "type": "boolean",
+          "default": false,
+          "description": "Write tables without padding (| a | b |). Smaller diffs, harder to read as text."
+        },
+        "excelToMarkdown.escapeHtml": {
+          "type": "boolean",
+          "default": true,
+          "description": "Write < and > in cells as &lt; and &gt;, so HTML in a cell shows as text in the rendered Markdown."
+        },
+        "excelToMarkdown.escapeMarkdown": {
+          "type": "boolean",
+          "default": false,
+          "description": "Escape * _ ` [ ] # ~ in cells, so they show as typed instead of as Markdown formatting. Pipes and backslashes are always escaped."
+        },
+        "excelToMarkdown.lineBreaks": {
+          "type": "string",
+          "enum": [
+            "<br>",
+            "space"
+          ],
+          "default": "<br>",
+          "description": "How line breaks inside a cell are written."
+        },
+        "excelToMarkdown.showProTools": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the Zovo Pro tools (whole workbook to .md files, Markdown tables to .xlsx, keep Excel formats; 3 free tries each). Turn off to hide them."
+        },
+        "excelToMarkdown.showSupportLinks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the small Rate, More free viewers and support links at the bottom of the spreadsheet preview."
+        },
+        "excelToMarkdown.askForRating": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ask once, after a few days of use, whether you want to rate the extension. Never after an error."
+        }
+      }
+    },
+    "walkthroughs": [
+      {
+        "id": "excelToMarkdown.start",
+        "title": "Excel to Markdown Table",
+        "description": "Turn cells from Excel, Google Sheets and CSV files into Markdown tables, and back.",
+        "steps": [
+          {
+            "id": "paste",
+            "title": "Paste cells as a Markdown table",
+            "description": "Copy cells in Excel, Google Sheets, Numbers or LibreOffice. In a Markdown file, right-click and pick Paste as Markdown Table, or run it from the Command Palette.\n[Paste as Markdown Table](command:excelToMarkdown.paste)\nNormal Cmd+V / Ctrl+V is left alone. To paste tables with a key of your own, add a keybinding:\n[Add a keybinding](command:excelToMarkdown.addKeybinding)",
+            "media": {
+              "markdown": "walkthrough/paste.md"
+            }
+          },
+          {
+            "id": "open",
+            "title": "Copy a sheet or range from a workbook",
+            "description": "Right-click an .xlsx, .xls, .ods or .csv file and pick Open Spreadsheet as Markdown Table. Choose the sheet and a range such as A1:D20, then copy or insert the table.\n[Open the sample workbook](command:excelToMarkdown.openSample)",
+            "media": {
+              "markdown": "walkthrough/open.md"
+            }
+          },
+          {
+            "id": "convert",
+            "title": "Format tables, and go back to CSV",
+            "description": "Select CSV or TSV text and run Convert CSV/TSV to Markdown Table. Put the cursor in a Markdown table and run Format Markdown Table to line up its columns, or Convert Markdown Table to CSV to go back.\n[Open the sample CSV](command:excelToMarkdown.openSample?%22csv%22)",
+            "media": {
+              "markdown": "walkthrough/convert.md"
+            }
+          },
+          {
+            "id": "zovo-related",
+            "title": "Files that often come with tables",
+            "description": "If your project also has spreadsheets and CSV files or PDF files, these free Zovo extensions open them. A link opens the extension page, and you choose there whether to install it.\n[XLSX and CSV Viewer](command:extension.open?%5B%22zovo.table-viewer-vscode%22%5D)\n[PDF Viewer](command:extension.open?%5B%22zovo.pdf-viewer-dark%22%5D)",
+            "media": {
+              "markdown": "walkthrough/related.md"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node scripts/test.js",
+    "samples": "node scripts/make_samples.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "~1.90.0"
+  },
+  "sponsor": {
+    "url": "https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878"
+  }
+}
