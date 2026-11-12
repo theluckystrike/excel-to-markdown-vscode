@@ -13,6 +13,9 @@ const { createPro } = require('./pro');
 const { makeClipboard } = require('./clip');
 const { createRatingPrompt } = require('./rate');
 const { registerSupport, commandUris, showLinks } = require('./support');
+const crypto = require('crypto');
+const { createReach, currentSurface } = require('./reach');
+const reachConfig = require('./reach-config');
 
 const EXT_ID = 'zovo.zovo-excel-to-markdown';
 const PREFIX = 'excelToMarkdown';
@@ -25,6 +28,7 @@ const GRID_ROWS = 200, GRID_COLS = 50, SHOW_CHARS = 200000;
 
 let rating = { success() {}, failure() {} };
 let pro;
+let reach = null; // REACH1 row + Explorer entries (src/reach.js)
 let clip;
 let lastText = null; // { doc, sel, column } of the last text editor the user worked in
 const sampleDocs = new WeakSet(); // the walkthrough's try-it file: work done there does not count for the rating ask
@@ -265,15 +269,19 @@ const formatName = (f) => ({ markdown: 'Markdown', html: 'HTML', asciidoc: 'Asci
 function proState() {
   return { show: setting('showProTools', true) !== false, licensed: !!(pro && pro.licensed), tries: pro ? pro.tries() : {} };
 }
-function refreshPro() { for (const v of viewers) v.post({ type: 'pro', pro: proState() }); }
+function refreshPro() { for (const v of viewers) v.post({ type: 'pro', pro: proState() }); if (reach) reach.refresh(); }
 
 class Provider {
   constructor(context) { this.context = context; }
   openCustomDocument(uri) { return { uri, dispose() {} }; }
   resolveCustomEditor(document, panel) {
     const media = vscode.Uri.joinPath(this.context.extensionUri, 'media');
-    panel.webview.options = { enableScripts: true, enableCommandUris: commandUris(PREFIX), localResourceRoots: [media] };
+    // REACH1: the Pro tools row gets its own line under the preview toolbar (.reach1-line in media/main.js).
+    const nonce = crypto.randomBytes(24).toString('base64url');
+    panel.webview.options = { enableScripts: true, enableCommandUris: [...new Set([...commandUris(PREFIX), ...(reach ? reach.commandIds() : [])])], localResourceRoots: [media] };
     panel.webview.html = buildHtml({
+      nonce,
+      head: reach ? reach.headHtml(nonce) : '',
       cspSource: panel.webview.cspSource,
       scriptUri: panel.webview.asWebviewUri(vscode.Uri.joinPath(media, 'main.js')).toString(),
       styleUri: panel.webview.asWebviewUri(vscode.Uri.joinPath(media, 'main.css')).toString(),
@@ -282,10 +290,11 @@ class Provider {
     });
     const v = new Viewer(document.uri, panel);
     viewers.add(v);
+    if (reach) reach.attach(panel.webview, panel);
     if (panel.active) active = v;
     panel.onDidChangeViewState(() => { if (panel.active) active = v; else if (active === v && !panel.visible) active = null; });
     panel.onDidDispose(() => { viewers.delete(v); if (active === v) active = null; });
-    panel.webview.onDidReceiveMessage((m) => v.onMessage(m).then(undefined, (e) => v.post({ type: 'notice', text: String((e && e.message) || e) })));
+    panel.webview.onDidReceiveMessage((m) => (reach && reach.onMessage(m) ? undefined : v.onMessage(m)).then(undefined, (e) => v.post({ type: 'notice', text: String((e && e.message) || e) })));
   }
 }
 
@@ -306,7 +315,38 @@ async function toggleFormats(v, on) {
   v.state.formats = true;
   await v.render();
   await pro.produced('formats');
+  await v.post({ type: 'pro', pro: proState(), formats: true });
   refreshPro();
+}
+
+/** Waits until the preview of uri has read its workbook (at most 20 s). */
+async function viewerFor(uri) {
+  const key = uri.toString();
+  for (let i = 0; i < 200; i++) {
+    const v = [...viewers].find((x) => x.uri.toString() === key && x.model);
+    if (v) return v;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return null;
+}
+
+/** Pro 3 as a command (palette, the Pro tools row, the Explorer entry "Zovo Pro: Keep Excel Formats, ..."): turns on
+ *  Excel formats in the open preview, or opens the clicked workbook in the preview and turns them on there. */
+async function keepFormats(uri) {
+  let target = uri && uri.scheme ? uri : null;
+  let v = !target && active && active.model ? active : null;
+  if (!v && !target) {
+    const p = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: 'Open', title: 'Workbook to preview with Excel formats', filters: { Workbooks: ['xlsx', 'xlsm', 'xlsb', 'xls', 'ods'] } });
+    if (!p || !p[0]) return; // cancelled: no try used
+    target = p[0];
+  }
+  if (!v) {
+    await vscode.commands.executeCommand('vscode.openWith', target, VIEW_TYPE);
+    v = await viewerFor(target);
+    if (!v) { vscode.window.setStatusBarMessage(`${baseName(target)} could not be read, so Excel formats were not turned on. No free try was used.`, 8000); return; }
+  }
+  if (v.state.formats) { vscode.window.setStatusBarMessage('Excel formats are already on in this preview.', 5000); return; }
+  await toggleFormats(v, true);
 }
 
 /** Markdown for every sheet of a workbook model. */
@@ -363,6 +403,7 @@ async function listWorkbooks(root) {
  *  From the palette it always asks which files or folder (the preview's own button converts the open workbook); the
  *  dialog starts in the folder of the open workbook, if one is open. */
 async function workbookToMarkdown(uri, uris) {
+  if (currentSurface() === 'toolbar' && !(uri && uri.scheme) && active && active.model) return workbookFromViewer(active); // the row in a preview: this workbook
   let picks = Array.isArray(uris) && uris.length ? uris : uri && uri.fsPath ? [uri] : null;
   if (!(await pro.allowed('batch'))) return;
   if (!picks) {
@@ -411,9 +452,15 @@ async function workbookToMarkdown(uri, uris) {
 }
 
 /** Pro 2: the Markdown tables of the document (or the selection) -> one .xlsx file. */
-async function tablesToXlsx() {
-  const ed = vscode.window.activeTextEditor;
-  if (!ed) { vscode.window.showInformationMessage('Open a Markdown file with tables first.'); return; }
+async function tablesToXlsx(uri) {
+  let ed = vscode.window.activeTextEditor;
+  if (uri && uri.scheme) ed = await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(uri), { preview: false }); // the Explorer entry on a .md file
+  else if (!ed && lastText && lastText.doc && !lastText.doc.isClosed && lastText.doc.languageId === 'markdown') ed = await vscode.window.showTextDocument(lastText.doc, { preview: false, viewColumn: lastText.column }); // from the row in a preview
+  if (!ed) {
+    const p = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: 'Open', title: 'Markdown file with tables', filters: { Markdown: ['md', 'markdown'] } });
+    if (!p || !p[0]) return;
+    ed = await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(p[0]), { preview: false });
+  }
   const sel = ed.selection;
   const text = sel.isEmpty ? ed.document.getText() : ed.document.getText(new vscode.Range(sel.start.line, 0, sel.end.line, ed.document.lineAt(sel.end.line).text.length));
   const found = T.findAllTables(text, 255);
@@ -441,6 +488,8 @@ function activate(context) {
   rating = createRatingPrompt({ vscode, context, extensionId: EXT_ID, section: PREFIX, name: 'Excel to Markdown' });
   registerSupport({ vscode, context, prefix: PREFIX, selfId: EXT_ID });
   pro = createPro({ vscode, context });
+  reach = createReach({ vscode, context, ...reachConfig, licensed: () => pro.licensed, shown: () => setting('showProTools', true) !== false });
+  reach.registerCtx();
   context.subscriptions.push(pro.onDidChange(() => refreshPro()));
   context.subscriptions.push(vscode.window.registerCustomEditorProvider(VIEW_TYPE, new Provider(context), { supportsMultipleEditorsPerDocument: true, webviewOptions: { retainContextWhenHidden: true } }));
   remember(vscode.window.activeTextEditor);
@@ -474,8 +523,9 @@ function activate(context) {
   });
   reg(`${PREFIX}.addKeybinding`, () => vscode.commands.executeCommand('workbench.action.openGlobalKeybindings', `@command:${PREFIX}.paste`));
   reg(`${PREFIX}.openWalkthrough`, () => vscode.commands.executeCommand('workbench.action.openWalkthrough', `${EXT_ID}#${PREFIX}.start`, false));
-  reg(`${PREFIX}.workbookToMarkdown`, workbookToMarkdown);
-  reg(`${PREFIX}.tablesToXlsx`, tablesToXlsx);
+  reg(`${PREFIX}.workbookToMarkdown`, reach.wrap(workbookToMarkdown));
+  reg(`${PREFIX}.tablesToXlsx`, reach.wrap(tablesToXlsx));
+  reg(`${PREFIX}.keepFormats`, reach.wrap(keepFormats));
   context.subscriptions.push(vscode.window.registerUriHandler({ handleUri: (uri) => pro.handleUri(uri) }));
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => {
     if (e.affectsConfiguration(`${PREFIX}.showProTools`)) refreshPro();

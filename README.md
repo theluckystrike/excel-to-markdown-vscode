@@ -1,10 +1,17 @@
-# Excel to Markdown Table & CSV to Markdown for VS Code
+# Excel to Markdown & CSV Tables
 
-Zovo Pro: USD 19 once, every Zovo tool. Converting whole workbooks, saving Markdown tables as .xlsx and keeping Excel formats are Pro, with 3 free tries each; paste, convert and preview stay free.
-
-Copy cells in Excel, Google Sheets, Numbers or LibreOffice Calc and paste them into a Markdown file as a clean Markdown table. Convert CSV and TSV to Markdown and back, line up the columns of an existing table, and open `.xlsx`, `.xls`, `.ods` and `.csv` files to copy a whole sheet or a range such as `A1:D20`. Works offline, with no network calls.
+Paste cells copied from Excel, Google Sheets, Numbers or LibreOffice into a Markdown file as a clean Markdown table, and turn CSV, TSV and workbook sheets into Markdown tables inside VS Code.
 
 ![Paste as Markdown Table: cells copied from a spreadsheet become an aligned Markdown table at the cursor](images/paste-table.png)
+
+Free, with no limit and no sign-in:
+
+- Paste as Markdown Table from Excel, Google Sheets, Numbers or LibreOffice Calc. Normal paste is never changed.
+- Convert CSV or TSV to a Markdown table and back, and line up the columns of an existing table.
+- Open `.xlsx`, `.xls`, `.ods` and `.csv` files to copy a sheet or a range such as `A1:D20` as Markdown, HTML, AsciiDoc, Jira, CSV or TSV.
+- Offline: no network calls, no telemetry.
+
+Zovo Pro: USD 19 once, for the Pro tools in every Zovo extension. Here it adds Convert Workbooks to Markdown Files, Save Markdown Tables as an Excel File and Keep Excel Formats, Links and Merged Cells, with 3 free tries each on your computer. They are in the Pro tools row of the spreadsheet preview and in the Explorer right-click menu ("Zovo Pro: ...").
 
 ## Paste from Excel or Google Sheets
 
@@ -50,7 +57,7 @@ Everything above is free, with no limit and no sign-in. Three Zovo Pro tools sav
 | Paste as Markdown table, CSV/TSV to Markdown and back, format tables, workbook preview with sheet and range, HTML, AsciiDoc, Jira | yes | yes |
 | Convert whole workbooks to Markdown files: every sheet of a workbook, or every workbook in a folder, to `.md` files with one heading per sheet | 3 tries | yes |
 | Save Markdown tables as an Excel file: every table of a document in one `.xlsx`, one sheet per table named after the heading above it, numbers stored as numbers | 3 tries | yes |
-| Keep Excel formats, links and merged cells: cells as Excel shows them (`1,234.50 USD`, `25%`, `1 Jan 2024`), hyperlinks as Markdown links, merged cells filled into every cell they cover | 3 tries | yes |
+| Keep Excel formats, links and merged cells: cells as Excel shows them (`1,234.50`, `25%`, `1 Jan 2024`), hyperlinks as Markdown links, merged cells filled into every cell they cover | 3 tries | yes |
 
 Zovo Pro is USD 19 once and turns on the Pro tools in every Zovo extension. Nothing about Pro shows when you open a file or paste a table; it only comes up when you click one of the three tools. To hide them, set `excelToMarkdown.showProTools` to `false`.
 
@@ -83,8 +90,9 @@ Zovo Pro is USD 19 once and turns on the Pro tools in every Zovo extension. Noth
 | Excel to Markdown: Format Markdown Table | Command Palette, right-click in a Markdown file |
 | Excel to Markdown: Open Spreadsheet as Markdown Table | Command Palette, right-click a spreadsheet in the Explorer |
 | Excel to Markdown: Open the sample workbook | Command Palette, walkthrough |
-| Excel to Markdown: Convert workbooks to Markdown files (Pro) | Command Palette, right-click a workbook or folder |
-| Excel to Markdown: Save Markdown tables as an Excel .xlsx file (Pro) | Command Palette |
+| Excel to Markdown: Convert workbooks to Markdown files (Pro) | Command Palette, right-click a workbook or folder, the preview's Pro tools row |
+| Excel to Markdown: Save Markdown tables as an Excel .xlsx file (Pro) | Command Palette, right-click a Markdown file, the preview's Pro tools row |
+| Excel to Markdown: Keep Excel formats, links and merged cells in the preview (Pro) | Command Palette, right-click a workbook, the preview's Pro tools row |
 
 ## Third-party code
 
@@ -102,7 +110,7 @@ Zovo extensions have no ads and no tracking. They are made by [theluckystrike](h
 
 ### Need your format supported?
 
-Open a [format request](https://github.com/theluckystrike/excel-to-markdown-vscode/issues/new?template=format-request.yml) with a sample file, and I reply there whether it can be done. For USD 299 once, through [this GitHub Sponsors tier](https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679995), I add your file format or a missing feature to this extension, with tests, within 7 days.
+Open a [format request](https://github.com/theluckystrike/excel-to-markdown-vscode/issues/new?template=format-request.yml) with a sample file, and I reply there whether it can be done.
 
 ## More tools by Zovo
 

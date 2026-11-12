@@ -31,3 +31,6 @@ button.toggle.on { background: var(--vscode-button-background); color: var(--vsc
 .outnote { padding-top: 4px; }
 .error { max-width: 720px; }
 .error h2 { font-size: 1.2em; }
+.reach1-line { padding-top: 4px; }
+.reach1-line:empty { display: none; }
+.reach1-line .zovo-reach1 { margin-left: 0; }

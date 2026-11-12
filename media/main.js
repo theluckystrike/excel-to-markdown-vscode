@@ -52,6 +52,7 @@
     ui.pro.appendChild(ui.formats); ui.pro.appendChild(ui.workbook);
     top.appendChild(ui.pro);
     app.appendChild(top);
+    app.appendChild(el('div', 'reach1-line')); // REACH1: the Zovo Pro tools row (filled by the extension's boot script)
     ui.info = el('div', 'info muted');
     app.appendChild(ui.info);
     const split = el('div', 'split');
@@ -141,7 +142,7 @@
     if (msg.type === 'init') { sheets = msg.sheets || []; state = Object.assign(state, msg.state || {}); pro = msg.pro || pro; build(msg.name || ''); }
     else if (msg.type === 'output' && built) output(msg);
     else if (msg.type === 'error') error(msg);
-    else if (msg.type === 'pro') { pro = msg.pro || pro; if (msg.formats === false) state.formats = false; applyPro(); }
+    else if (msg.type === 'pro') { pro = msg.pro || pro; if (typeof msg.formats === 'boolean') state.formats = msg.formats; applyPro(); }
     else if (msg.type === 'notice' && built) { ui.info.textContent = msg.text; ui.info.classList.add('err'); }
     else if (msg.type === 'done' && built) { const b = msg.what === 'copy' ? ui.copy : ui.insert; b.classList.add('flash'); setTimeout(() => b.classList.remove('flash'), 900); }
   });

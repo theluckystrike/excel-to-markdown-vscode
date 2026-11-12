@@ -7,7 +7,7 @@ function escapeAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** p: { cspSource, scriptUri, styleUri, title, nonce?, showSupportLinks? } */
+/** p: { cspSource, scriptUri, styleUri, title, nonce?, showSupportLinks?, head? (REACH1 style + boot script, with this nonce) } */
 function buildHtml(p) {
   const n = p.nonce || crypto.randomBytes(24).toString('base64url');
   const footer = footerHtml('excelToMarkdown', p.showSupportLinks !== false, '');
@@ -24,6 +24,7 @@ function buildHtml(p) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="${escapeAttr(p.styleUri)}">
 ${footer ? `<style nonce="${n}">${FOOTER_CSS}</style>` : ''}
+${p.head || ''}
 <title>${escapeAttr(p.title)}</title>
 </head>
 <body>

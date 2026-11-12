@@ -210,7 +210,7 @@ test('facade unlock() with no rail id: the "I already paid" quick pick, GitHub S
 });
 
 test('EXEC14 order: panel [Get Zovo Pro, USD 19] [Pay with PayPal] [I already paid]; the paid pick lists Sponsors, key, other rails', async () => {
-  assert.equal(IDX.MODULE_VERSION, '2026-11-10.card1');
+  assert.equal(IDX.MODULE_VERSION, '2026-11-12.reach1');
   const polar = { id: 'polar', label: 'Polar', ready: Promise.resolve(), isPro: () => false, unlock: async () => ({ pro: false, reason: 'cancelled' }) };
   let buttons;
   const f = fakeVscode({ info: (msg, rest) => { if (rest[0] && rest[0].modal) buttons = rest.slice(1); return undefined; } });
@@ -526,9 +526,9 @@ test('CARD1 Pay by card opens card_buy_url with the stable random install id; ar
   const pro = mk(f, { cardBuyUrl: CARD, commandPrefix: 'hexViewer' });
   await pro.ready;
   assert.equal(await pro.requirePro('Checksums'), false);
-  assert.match(f.log.opened[0], /^https:\/\/license\.zovo\.one\/buy\/zovo-pro\?client_reference_id=[0-9a-f-]{36}$/);
+  assert.match(f.log.opened[0], /^https:\/\/license\.zovo\.one\/buy\/zovo-pro\?client_reference_id=[0-9a-f-]{36}_panel$/);
   await f.log.commands['hexViewer.payByCard']();
-  assert.equal(f.log.opened[1], f.log.opened[0], 'same install id on every click');
+  assert.equal(f.log.opened[1], f.log.opened[0].replace(/_panel$/, '_palette'), 'same install id on every click (CARD2: the surface tag differs)');
   assert.equal(f.global.size, 1); // only the random install id is stored
   // the other buttons
   const s = panelOf({}, 'Get Zovo Pro with GitHub Sponsors');
@@ -614,4 +614,161 @@ test('CARD1 the Worker key (Stripe test mode) passes the same check the extensio
   if (!fs.existsSync(file)) return; // inside an extension repo: the factory file is not there
   const TESTPUB = fs.readFileSync(file, 'utf8').trim();
   assert.notEqual(TESTPUB, lic.PUBLIC_KEY_SPKI_B64, 'test and live pairs differ');
+});
+
+// ---- CARD2 (11 Nov, BUY1/BUYMOD): every Zovo Pro link opens one buy pick; card links carry <install id>_<surface> ----
+function pickSpy(f, choose) {
+  f.log.pickCalls = [];
+  f.vscode.window.showQuickPick = async (items, o) => {
+    f.log.picks.push(items.map((i) => i.label));
+    f.log.pickCalls.push({ items, o });
+    const want = typeof choose === 'function' ? choose(items, o) : choose;
+    return want ? items.find((i) => i.label === want) : undefined;
+  };
+  return f;
+}
+const refOf = (u) => new URL(u).searchParams.get('client_reference_id');
+const WORKER_HINT = 'VS Code will ask to open license.zovo.one, our Stripe checkout. Choose Open.';
+
+test('CARD2 getPro with card_buy_url: one pick, 4 rows in order, title + one hint line; nothing opens until a pick', async () => {
+  assert.equal(IDX.MODULE_VERSION, '2026-11-12.reach1');
+  const f = pickSpy(fakeVscode(), undefined);
+  const pro = mk(f, { cardBuyUrl: CARD, commandPrefix: 'hexViewer' });
+  await pro.ready;
+  assert.equal(f.log.picks.length, 0, 'no pick at activation');
+  assert.equal(await f.log.commands['hexViewer.getPro'](), false);
+  assert.deepEqual(f.log.picks[0], ['Pay by card, USD 19, no account', 'GitHub Sponsors', 'PayPal', 'Enter a key']);
+  assert.deepEqual(f.log.picks[0], IDX.PICK_LABELS);
+  const { o, items } = f.log.pickCalls[0];
+  assert.equal(o.title, 'Zovo Pro: USD 19 once, for the Pro tools in every Zovo extension');
+  assert.equal(o.placeHolder, WORKER_HINT);
+  assert.ok(!o.placeHolder.includes('\n'), 'one line');
+  assert.match(items[1].description, /needs a GitHub account/);
+  // Escape: nothing opened, no install id stored, no message
+  assert.deepEqual(f.log.opened, []);
+  assert.equal(f.global.size, 0);
+  assert.equal(f.log.info.length + f.log.warn.length, 0);
+  // no PayPal link: 3 rows, same order
+  const g = pickSpy(fakeVscode(), undefined);
+  await mk(g, { cardBuyUrl: CARD, paypalUrl: '' }).getPro('footer');
+  assert.deepEqual(g.log.picks[0], ['Pay by card, USD 19, no account', 'GitHub Sponsors', 'Enter a key']);
+});
+
+test('CARD2 pick rows: card opens the tagged Worker link, Sponsors the tier, PayPal the steps, Enter a key the key path', async () => {
+  const f = pickSpy(fakeVscode(), 'Pay by card, USD 19, no account');
+  const pro = mk(f, { cardBuyUrl: CARD });
+  await pro.ready;
+  assert.equal(await pro.getPro('footer'), false);
+  assert.equal(f.log.opened.length, 1);
+  assert.match(f.log.opened[0], /^https:\/\/license\.zovo\.one\/buy\/zovo-pro\?client_reference_id=[0-9a-f-]{36}_footer$/);
+  const s = pickSpy(fakeVscode(), 'GitHub Sponsors');
+  await mk(s, { cardBuyUrl: CARD }).getPro('footer');
+  assert.deepEqual(s.log.opened, ['https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878']);
+  assert.equal(s.log.picks.length, 1, 'no second pick');
+  const p = pickSpy(fakeVscode(), 'PayPal');
+  await mk(p, { cardBuyUrl: CARD }).getPro('footer');
+  assert.equal(p.log.info.at(-1), 'Pay for Zovo Pro with PayPal');
+  assert.equal(p.log.opened.length, 0, 'the PayPal steps modal first; nothing opens until its button');
+  const key = sign({ ...base, sku: 'zovo-pro' });
+  const k = withClipboard(pickSpy(fakeVscode(), 'Enter a key'), key);
+  const kp = mk(k, { cardBuyUrl: CARD });
+  await kp.ready;
+  assert.equal(await kp.getPro('footer'), true);
+  assert.equal(kp.isPro('hex-pro'), true);
+  assert.equal(k.log.opened.length, 0);
+});
+
+test('CARD2 surfaces: footer, panel, palette, support, pill, menu tag the card link; only [A-Za-z0-9_-], under 200', async () => {
+  const cases = [
+    ['footer', 'footer'], [{ surface: 'pill' }, 'pill'], [undefined, 'palette'], ['statusbar', 'footer'],
+    [{ scheme: 'file', path: '/w/a.xlsx', fsPath: '/w/a.xlsx' }, 'menu'], [[{ scheme: 'file', path: '/w/a.docx' }], 'menu'],
+    ['menu', 'menu'], ['support', 'support'], [{ surface: 'toolbar' }, 'toolbar'], [{ surface: 'ctx' }, 'ctx'],
+    ['../evil?x=1&y=2', 'palette'], [{ surface: 'x'.repeat(500) }, 'palette'], [42, 'palette'],
+  ];
+  const f = pickSpy(fakeVscode(), 'Pay by card, USD 19, no account');
+  const pro = mk(f, { cardBuyUrl: CARD, commandPrefix: 'hexViewer' });
+  await pro.ready;
+  for (const [arg, want] of cases) await f.log.commands['hexViewer.getPro'](arg);
+  const ids = new Set();
+  f.log.opened.forEach((u, i) => {
+    const ref = refOf(u);
+    assert.match(ref, /^[A-Za-z0-9_-]{1,199}$/, u);
+    assert.ok(ref.endsWith('_' + cases[i][1]), `${JSON.stringify(cases[i][0])} -> ${ref}`);
+    assert.ok(IDX.SURFACES.includes(ref.split('_').pop()));
+    ids.add(ref.slice(0, 36));
+  });
+  assert.equal(f.log.opened.length, cases.length);
+  assert.equal(ids.size, 1, 'one stable install id');
+  // the palette "Pay for Zovo Pro by card" command: no pick, straight to the card, tagged palette (or the given surface)
+  const n = f.log.picks.length;
+  await f.log.commands['hexViewer.payByCard']();
+  await f.log.commands['hexViewer.payByCard']({ surface: 'menu' });
+  assert.equal(f.log.picks.length, n);
+  assert.ok(refOf(f.log.opened.at(-2)).endsWith('_palette'));
+  assert.ok(refOf(f.log.opened.at(-1)).endsWith('_menu'));
+  // Support the developer: Zovo Pro row -> the pick -> support
+  const s = pickSpy(fakeVscode(), (items) => (items[0].id === 'pro' ? IDX.SUPPORT_PRO_LABEL : 'Pay by card, USD 19, no account'));
+  await mk(s, { cardBuyUrl: CARD }).supportDeveloper([{ label: 'GitHub Sponsors', url: 'https://github.com/sponsors/theluckystrike' }]);
+  assert.equal(s.log.picks.length, 2);
+  assert.ok(refOf(s.log.opened[0]).endsWith('_support'));
+  // the Pro panel: card button -> panel (no pick)
+  const box = {};
+  const pp = pickSpy(panelOf(box, 'Pay by card (USD 19)'), undefined);
+  await mk(pp, { cardBuyUrl: CARD }).requirePro('Checksums', { triesUsed: 3 });
+  assert.equal(pp.log.picks.length, 0);
+  assert.ok(refOf(pp.log.opened[0]).endsWith('_panel'));
+  // pure helper
+  assert.equal(IDX.surfaceOf('PILL'), 'pill');
+  assert.equal(IDX.surfaceOf(null, 'footer'), 'footer');
+});
+
+test('CARD2 the Pro panel keeps its 4 buttons; the trust line ends the text; Sponsors opens the tier with no pick', async () => {
+  const box = {};
+  const f = pickSpy(panelOf(box, 'Get Zovo Pro with GitHub Sponsors'), undefined);
+  const pro = mk(f, { cardBuyUrl: CARD });
+  await pro.ready;
+  assert.equal(await pro.requirePro('Checksums', { triesUsed: 3 }), false);
+  assert.deepEqual(box.buttons, ['Pay by card (USD 19)', 'Get Zovo Pro with GitHub Sponsors', 'Pay with PayPal', 'Enter a key']);
+  assert.deepEqual(f.log.opened, ['https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878']);
+  assert.equal(f.log.picks.length, 0);
+  const d = pro.panelDetail('Checksums', { triesUsed: 3 });
+  assert.ok(d.endsWith('\n\n' + WORKER_HINT), d);
+  assert.equal(pro.trustHint(), WORKER_HINT);
+  // a Stripe Payment Link in card_buy_url: the line names stripe.com
+  const sl = pickSpy(fakeVscode(), undefined);
+  const sp = mk(sl, { cardBuyUrl: 'https://buy.stripe.com/test_eVq3cw2oagsgeklaYZ43S0Q' });
+  await sp.getPro('footer');
+  assert.equal(sl.log.pickCalls[0].o.placeHolder, 'VS Code will ask to open stripe.com. Choose Open.');
+  assert.ok(sp.panelDetail('Checksums').endsWith('VS Code will ask to open stripe.com. Choose Open.'));
+});
+
+test('CARD2 without card_buy_url: getPro, payByCard and the panel are exactly CARD1/EXEC14 (no pick, no tag, no hint)', async () => {
+  const f = pickSpy(fakeVscode(), undefined);
+  const pro = mk(f, { commandPrefix: 'hexViewer' });
+  await pro.ready;
+  await f.log.commands['hexViewer.getPro']('footer');
+  await pro.getPro({ surface: 'pill' });
+  assert.equal(f.log.picks.length, 0);
+  assert.deepEqual(f.log.opened, ['https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878', 'https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878']);
+  assert.ok(!('hexViewer.payByCard' in f.log.commands));
+  assert.ok(!/Choose Open/.test(pro.panelDetail('Checksums', { triesUsed: 3 })));
+  assert.equal(pro.trustHint(), '');
+  // a Stripe paymentUrl (CARD1 path) keeps the untagged install id
+  const b = fakeVscode();
+  await mk(b, { paymentUrl: lic.BUY_URL + 'hex-pro' }).getPro('footer');
+  assert.match(b.log.opened[0], /^https:\/\/license\.zovo\.one\/buy\/hex-pro\?client_reference_id=[0-9a-f-]{36}$/);
+  // Gumroad unset, card unset: payByCard says so and opens nothing
+  const g = fakeVscode();
+  await mk(g).payByCard('footer');
+  assert.equal(g.log.opened.length, 0);
+  assert.match(g.log.info[0], /not sold by card/);
+});
+
+test('CARD2 activation: no network, no clipboard read, no message and no pick with the card rail on', async () => {
+  const f = pickSpy(withClipboard(fakeVscode(), 'ZOVO1.x.y'), 'Pay by card, USD 19, no account');
+  const pro = mk(f, { cardBuyUrl: CARD, commandPrefix: 'hexViewer' });
+  await pro.ready;
+  f.log.win && f.log.win({ focused: false }); f.log.win && f.log.win({ focused: true }); await tick();
+  assert.equal(f.log.info.length + f.log.warn.length + f.log.opened.length + f.log.picks.length + (f.log.clipReads || 0), 0);
+  assert.equal(f.global.size, 0, 'no install id until a card click');
 });

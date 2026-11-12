@@ -1,8 +1,8 @@
 {
   "name": "zovo-excel-to-markdown",
-  "displayName": "Excel to Markdown Table & CSV to Markdown (Paste from Excel, Google Sheets, XLSX)",
+  "displayName": "Excel to Markdown & CSV Tables",
   "description": "Excel to Markdown table converter: paste cells copied from Excel, Google Sheets, Numbers or LibreOffice as a Markdown table, convert CSV to Markdown and back, format tables, and open .xlsx, .xls, .ods and .csv files to copy a sheet or range as Markdown. Offline, no network.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
@@ -28,29 +28,10 @@
   ],
   "keywords": [
     "excel to markdown",
-    "excel to markdown table",
     "csv to markdown",
     "markdown table",
-    "paste markdown table",
-    "table to markdown",
-    "markdown table generator",
-    "copy excel to markdown",
-    "markdown table formatter",
     "paste excel",
-    "google sheets to markdown",
-    "xlsx to markdown",
-    "tsv to markdown",
-    "markdown to csv",
-    "markdown table to excel",
-    "excel",
-    "csv",
-    "tsv",
-    "xlsx",
-    "markdown",
-    "table",
-    "asciidoc table",
-    "jira table",
-    "html table"
+    "xlsx to markdown"
   ],
   "main": "./src/extension.js",
   "activationEvents": [],
@@ -150,6 +131,11 @@
         "category": "Excel to Markdown"
       },
       {
+        "command": "excelToMarkdown.keepFormats",
+        "title": "Keep Excel formats, links and merged cells in the preview (Pro)",
+        "category": "Excel to Markdown"
+      },
+      {
         "command": "excelToMarkdown.getPro",
         "title": "Get Zovo Pro (USD 19 once, all 22 Zovo extensions)",
         "category": "Zovo Pro"
@@ -178,6 +164,18 @@
         "command": "excelToMarkdown.payByCard",
         "title": "Pay for Zovo Pro by card (USD 19)",
         "category": "Zovo Pro"
+      },
+      {
+        "command": "excelToMarkdown.zovoPro.batch",
+        "title": "Zovo Pro: Convert Workbooks to Markdown Files"
+      },
+      {
+        "command": "excelToMarkdown.zovoPro.xlsx",
+        "title": "Zovo Pro: Save Markdown Tables as an Excel File"
+      },
+      {
+        "command": "excelToMarkdown.zovoPro.formats",
+        "title": "Zovo Pro: Keep Excel Formats, Links and Merged Cells"
       }
     ],
     "menus": {
@@ -200,9 +198,44 @@
           "group": "navigation@45"
         },
         {
-          "command": "excelToMarkdown.workbookToMarkdown",
+          "command": "excelToMarkdown.zovoPro.batch",
           "when": "(explorerResourceIsFolder || resourceExtname =~ /^\\.(xlsx|xlsm|xlsb|xls|ods)$/i) && config.excelToMarkdown.showProTools",
           "group": "7_modification@45"
+        },
+        {
+          "command": "excelToMarkdown.zovoPro.xlsx",
+          "when": "resourceExtname == .md && config.excelToMarkdown.showProTools",
+          "group": "zovoPro@1"
+        },
+        {
+          "command": "excelToMarkdown.zovoPro.xlsx",
+          "when": "resourceExtname == .markdown && config.excelToMarkdown.showProTools",
+          "group": "zovoPro@1"
+        },
+        {
+          "command": "excelToMarkdown.zovoPro.formats",
+          "when": "resourceExtname == .xlsx && config.excelToMarkdown.showProTools",
+          "group": "zovoPro@1"
+        },
+        {
+          "command": "excelToMarkdown.zovoPro.formats",
+          "when": "resourceExtname == .xlsm && config.excelToMarkdown.showProTools",
+          "group": "zovoPro@1"
+        },
+        {
+          "command": "excelToMarkdown.zovoPro.formats",
+          "when": "resourceExtname == .xlsb && config.excelToMarkdown.showProTools",
+          "group": "zovoPro@1"
+        },
+        {
+          "command": "excelToMarkdown.zovoPro.formats",
+          "when": "resourceExtname == .xls && config.excelToMarkdown.showProTools",
+          "group": "zovoPro@1"
+        },
+        {
+          "command": "excelToMarkdown.zovoPro.formats",
+          "when": "resourceExtname == .ods && config.excelToMarkdown.showProTools",
+          "group": "zovoPro@1"
         }
       ],
       "editor/title": [
@@ -220,6 +253,22 @@
         {
           "command": "excelToMarkdown.tablesToXlsx",
           "when": "config.excelToMarkdown.showProTools"
+        },
+        {
+          "command": "excelToMarkdown.keepFormats",
+          "when": "config.excelToMarkdown.showProTools"
+        },
+        {
+          "command": "excelToMarkdown.zovoPro.batch",
+          "when": "false"
+        },
+        {
+          "command": "excelToMarkdown.zovoPro.xlsx",
+          "when": "false"
+        },
+        {
+          "command": "excelToMarkdown.zovoPro.formats",
+          "when": "false"
         }
       ]
     },

@@ -50,6 +50,20 @@
 // - "Enter a key": after that click only, the clipboard is read once (local); a ZOVO1 key there is checked offline and
 //   turns Pro on. Otherwise a quick pick: paste a key, unlock with GitHub Sponsors, or PayPal without a key yet.
 // - card_buy_url empty: everything as in EXEC14. Gumroad stays as it is (hidden while gumroad_pro is empty).
+//
+// CARD2 (11 Nov, BUY1/BUYMOD, CONV4 fix 1: the footer link ran GitHub Sponsors on 100 % of opens):
+// - With card_buy_url set, getPro() opens ONE quick pick, started by the user's click (no popup, nothing on open):
+//     title "Zovo Pro: USD 19 once, for the Pro tools in every Zovo extension", one line under it (the placeholder)
+//     about VS Code's open prompt (trustHint: "VS Code will ask to open stripe.com. Choose Open." for a Stripe link,
+//     the license Worker's host otherwise), rows: [Pay by card, USD 19, no account] [GitHub Sponsors] [PayPal]
+//     [Enter a key]. Escape opens nothing. Every visible Zovo Pro link runs getPro: the footer/status bar link, the
+//     palette "Get Zovo Pro", the first row of "Support the developer", a product's Pro pill and Explorer menu entry.
+// - Card links carry client_reference_id=<install id>_<surface>, surface one of SURFACES (footer, panel, palette,
+//   support, pill, menu). The command handlers read it from the argument: a string or { surface }, a vscode.Uri
+//   (Explorer / editor menus) = menu, nothing = palette. Only [A-Za-z0-9_-], under 200 characters.
+// - The Pro panel keeps its 4 buttons and order; "Pay by card" is tagged panel, "GitHub Sponsors" opens the tier at
+//   once (no second pick), and the trust line ends the panel text.
+// - card_buy_url empty: getPro, payByCard and the panel are exactly CARD1/EXEC14 (no pick, no tag).
 
 const crypto = require('crypto');
 const fs = require('fs');
@@ -66,7 +80,7 @@ const PRICE = { one: 19, team: 59, seats: 5 };
 // The public issue form where a PayPal buyer sends the transaction id (owner watches it; the key goes by email).
 const KEY_REQUEST_URL = 'https://github.com/theluckystrike/zovo-plugin-factory/issues/new?template=zovo-pro-key.yml';
 const RETURN_MS = 2 * 60 * 60 * 1000;
-const MODULE_VERSION = '2026-11-10.card1';
+const MODULE_VERSION = '2026-11-12.reach1';
 const BRAND = 'Zovo Pro';
 // Zovo VS Code listings with Pro tools (F, XSELL2 gallery read 2026-11-10 05:46). config.js pro_extensions overrides.
 const PRO_EXTENSIONS = 22;
@@ -93,6 +107,42 @@ const PAID_DESC = {
 };
 const NO_KEY_LABEL = 'I paid with PayPal and have no key yet';
 const SUPPORT_PRO_LABEL = 'Zovo Pro: USD 19 once, unlocks the Pro tools in all Zovo extensions';
+// CARD2: the one buy pick (getPro with card_buy_url) and where the click came from.
+const SURFACES = ['footer', 'panel', 'palette', 'support', 'pill', 'menu', 'toolbar', 'ctx'];
+const SURFACE_ALIAS = { statusbar: 'footer', 'status-bar': 'footer', status: 'footer', explorer: 'menu', context: 'menu' };
+const PICK_TITLE = `Zovo Pro: USD ${PRICE.one} once, for the Pro tools in every Zovo extension`;
+const PICK_CARD = `Pay by card, USD ${PRICE.one}, no account`;
+const PICK_SPONSORS = 'GitHub Sponsors';
+const PICK_PAYPAL = 'PayPal';
+const PICK_KEY = ENTER_KEY_LABEL;
+const PICK_LABELS = [PICK_CARD, PICK_SPONSORS, PICK_PAYPAL, PICK_KEY];
+const REF_RE = /^[A-Za-z0-9_-]{1,199}$/;
+// The one line under the pick title and at the end of the panel: the site VS Code names in its "open the external
+// website?" prompt. A Stripe Payment Link shows stripe.com; the license Worker shows its own host (it then sends the
+// buyer to Stripe), so the line names that host and says it is the Stripe checkout.
+function trustHint(url) {
+  let host = '';
+  try { host = new URL(url).hostname; } catch (e) { host = ''; }
+  if (!host) return '';
+  if (host === 'stripe.com' || host.endsWith('.stripe.com')) return 'VS Code will ask to open stripe.com. Choose Open.';
+  return `VS Code will ask to open ${host}, our Stripe checkout. Choose Open.`;
+}
+// The surface of a click from a command argument: 'footer' or { surface: 'pill' } from product code and webview
+// command links, a vscode.Uri (or [Uri]) from an Explorer or editor menu, nothing from the palette or a keybinding.
+function surfaceOf(arg, fallback = 'palette') {
+  const pick = (s) => {
+    const v = typeof s === 'string' ? s.trim().toLowerCase() : '';
+    const w = SURFACE_ALIAS[v] || v;
+    return SURFACES.includes(w) ? w : '';
+  };
+  if (typeof arg === 'string') return pick(arg) || fallback;
+  if (Array.isArray(arg)) return arg.length && arg[0] && typeof arg[0] === 'object' && typeof arg[0].scheme === 'string' ? 'menu' : (typeof arg[0] === 'string' ? pick(arg[0]) || fallback : fallback);
+  if (arg && typeof arg === 'object') {
+    if (typeof arg.surface === 'string') return pick(arg.surface) || fallback;
+    if (typeof arg.scheme === 'string' && (typeof arg.path === 'string' || typeof arg.fsPath === 'string')) return 'menu';
+  }
+  return fallback;
+}
 const CARRY_KEY = 'zovo.carryover.asked';
 const SHARED_ENV = 'ZOVO_PRO_FILE';
 const SHARED_MAX_BYTES = 64 * 1024;
@@ -389,8 +439,29 @@ function createLicense(o) {
   const open = (url) => vscode.env.openExternal(vscode.Uri.parse(url, true));
   const info = (...a) => vscode.window.showInformationMessage(...a);
 
+  // CARD2: with the card rail on, every Zovo Pro link opens the one buy pick. Without it: the CARD1/EXEC14 buy page.
+  // arg: the surface of the click (surfaceOf). Returns true only when "Enter a key" turned Pro on.
+  async function getPro(arg) {
+    if (!cardBuyUrl) return openPayment();
+    return buyPick(surfaceOf(arg, 'palette'));
+  }
+
+  async function buyPick(surface) {
+    const items = [{ label: PICK_CARD, description: 'your key shows on the next page', id: 'card' }];
+    if (paymentUrl) items.push(onSponsors() ? { label: PICK_SPONSORS, description: `USD ${PRICE.one} once, needs a GitHub account`, id: 'sponsors' } : { label: BUY_LABEL, id: 'sponsors' });
+    if (paypalUrl) items.push({ label: PICK_PAYPAL, description: `USD ${PRICE.one}, the key comes by email`, id: 'paypal' });
+    items.push({ label: PICK_KEY, description: 'I already paid', id: 'key' });
+    const pick = await vscode.window.showQuickPick(items, { title: PICK_TITLE, placeHolder: trustHint(cardBuyUrl) });
+    if (!pick) return false; // Escape: nothing opens
+    if (pick.id === 'card') return payByCard(surface);
+    if (pick.id === 'sponsors') { await openPayment(); return false; }
+    if (pick.id === 'paypal') return payWithPayPal();
+    if (pick.id === 'key') return !!(await enterKey()).pro && isPro();
+    return false;
+  }
+
   // Opens the buy page (the Zovo Pro tier on GitHub Sponsors). A Stripe link gets a random install id.
-  async function getPro() {
+  async function openPayment() {
     if (!paymentUrl) {
       await info(`${label} is not on sale yet. Everything you use today stays free.`);
       return false;
@@ -404,10 +475,14 @@ function createLicense(o) {
 
   // Card checkout. CARD1: Stripe through the license Worker when funding.json card_buy_url is set (a random install id
   // goes along as client_reference_id; no other data). Else Gumroad (MONEY5 #1) when gumroad_pro and _url are set.
-  async function payByCard() {
+  // CARD2: the reference is <install id>_<surface> (arg as in getPro; nothing = palette).
+  async function payByCard(arg) {
     if (cardBuyUrl) {
       const sep = cardBuyUrl.includes('?') ? '&' : '?';
-      await openArmed(`${cardBuyUrl}${sep}client_reference_id=${encodeURIComponent(installId())}`, 'card');
+      const id = installId();
+      const tagged = `${id}_${surfaceOf(arg, 'palette')}`;
+      const ref = REF_RE.test(tagged) ? tagged : id;
+      await openArmed(`${cardBuyUrl}${sep}client_reference_id=${encodeURIComponent(ref)}`, 'card');
       return false;
     }
     if (!cardUrl) {
@@ -663,12 +738,14 @@ function createLicense(o) {
     }
     const mine = zovoTools(vscode, selfId).filter((t) => t.proPrefix).map((t) => t.name);
     if (mine.length) parts.push(`${label} also turns on Pro tools in the Zovo extensions you already have: ${namesList(mine)}.`);
+    if (cardBuyUrl && trustHint(cardBuyUrl)) parts.push(trustHint(cardBuyUrl)); // CARD2: one line, last
     return parts.join('\n\n');
   }
 
   // For a Pro action the user started: true when unlocked. Otherwise one modal (user-started, so allowed by the
   // VS Code UX rules) that says what the feature is, with the 4 buttons. Never shown on its own.
   async function requirePro(feature, detail) {
+    const surface = detail && typeof detail === 'object' && detail.surface;
     if (!isPro() && sharedRail) { await sharedRail.reload(false); changed(); }
     if (isPro()) {
       for (const r of rails) if (typeof r.refresh === 'function') r.refresh().catch(() => {}); // due monthly recheck only
@@ -679,8 +756,8 @@ function createLicense(o) {
     if (renew) btns.push('Renew page');
     const pick = await info(`${feature} is part of ${label}.`, { modal: true, detail: panelDetail(feature, detail) }, ...btns);
     if (!pick) return false;
-    if (pick === BUY_LABEL || pick === SPONSORS_BUY_LABEL) { await getPro(); return false; }
-    if (pick === CARD_LABEL || pick === CARD_BUY_LABEL) { await payByCard(); return false; }
+    if (pick === BUY_LABEL || pick === SPONSORS_BUY_LABEL) { await openPayment(); return false; }
+    if (pick === CARD_LABEL || pick === CARD_BUY_LABEL) { await payByCard(surface ? { surface } : 'panel'); return false; }
     if (pick === ENTER_KEY_LABEL) return !!(await enterKey()).pro && isPro();
     if (pick === PAYPAL_LABEL) return payWithPayPal();
     if (pick === 'Renew page') { await open(renew); return false; }
@@ -720,7 +797,7 @@ function createLicense(o) {
     for (const l of links) if (l && l.url) items.push({ label: l.label, detail: l.url, url: l.url });
     const pick = await vscode.window.showQuickPick(items, { placeHolder: 'Pick a way to support the developer' });
     if (!pick) return false;
-    if (pick.id === 'pro') return getPro();
+    if (pick.id === 'pro') return getPro('support');
     return open(pick.url);
   }
 
@@ -729,12 +806,12 @@ function createLicense(o) {
     const p = prefix || o.commandPrefix;
     const d = [
       vscode.commands.registerCommand(`${p}.enterLicenseKey`, async (arg) => (arg && arg.carryOver ? carryIn('key', arg.key) : outward(await unlock('license-key')))),
-      vscode.commands.registerCommand(`${p}.getPro`, () => getPro()),
+      vscode.commands.registerCommand(`${p}.getPro`, (arg) => getPro(arg)),
       vscode.commands.registerCommand(`${p}.removeLicense`, () => remove()),
     ];
     if (byId('github-sponsors')) d.push(vscode.commands.registerCommand(`${p}.unlockWithSponsors`, async (arg) => (arg && arg.carryOver ? carryIn('sponsors') : outward(await unlock('github-sponsors')))));
     if (paypalUrl) d.push(vscode.commands.registerCommand(`${p}.payWithPayPal`, () => payWithPayPal()));
-    if (cardBuyUrl || cardUrl) d.push(vscode.commands.registerCommand(`${p}.payByCard`, () => payByCard()));
+    if (cardBuyUrl || cardUrl) d.push(vscode.commands.registerCommand(`${p}.payByCard`, (arg) => payByCard(arg)));
     context.subscriptions.push(...d);
     return d;
   }
@@ -759,6 +836,7 @@ function createLicense(o) {
     supportDeveloper,
     installId,
     cardBuyUrl,
+    trustHint: () => (cardBuyUrl ? trustHint(cardBuyUrl) : ''),
     sharedFile: file,
     refresh: () => Promise.all(rails.map((r) => (typeof r.refresh === 'function' ? r.refresh().catch(() => false) : false))),
     state: () => Object.fromEntries(rails.map((r) => [r.id, typeof r.state === 'function' ? r.state() : null])),
@@ -773,4 +851,5 @@ module.exports = {
   SPONSORS_ONE_TIME, PAYPAL_ME, PRICE, KEY_REQUEST_URL, MODULE_VERSION, CATEGORY, PRO_EXTENSIONS, SUPPORT_PRO_LABEL,
   BUY_LABEL, CARD_LABEL, PAYPAL_LABEL, PAID_LABEL, LABELS, CARRY_KEY, SHARED_ENV,
   CARD_BUY_LABEL, SPONSORS_BUY_LABEL, ENTER_KEY_LABEL, CARD_BUY_RE,
+  SURFACES, PICK_TITLE, PICK_LABELS, PICK_CARD, surfaceOf, trustHint,
 };

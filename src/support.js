@@ -322,10 +322,40 @@ const QUEUED = [
     "https://github.com/theluckystrike/azure-storage-explorer-vscode"
   ],
   [
+    "zovo.zovo-can-dbc-viewer",
+    "DBC Viewer & CAN Log Viewer (BLF Viewer, ASC, TRC, candump Decoder)",
+    "shows DBC messages and signals and decodes CAN logs (ASC, candump, BLF) into signals.",
+    "https://github.com/theluckystrike/can-dbc-viewer-vscode"
+  ],
+  [
+    "zovo.zovo-convert-to-markdown",
+    "Convert to Markdown: PDF to Markdown, PPTX to Markdown, DOCX to Markdown",
+    "turns PDF, Word, PowerPoint and Excel files into clean Markdown.",
+    "https://github.com/theluckystrike/convert-to-markdown-vscode"
+  ],
+  [
     "zovo.zovo-cosmos-db-client",
     "Cosmos DB Client & Azure Cosmos DB Explorer (CosmosDB NoSQL Query, Emulator)",
     "runs Cosmos DB queries and edits items with a connection string or the emulator.",
     "https://github.com/theluckystrike/cosmos-db-client-vscode"
+  ],
+  [
+    "zovo.zovo-dbml-viewer",
+    "DBML Viewer & ER Diagram (DBML Preview, SQL to ER Diagram, ERD)",
+    "draws DBML and SQL schemas as an ER diagram, with tables, keys and relations.",
+    "https://github.com/theluckystrike/dbml-viewer-vscode"
+  ],
+  [
+    "zovo.zovo-docx-editor",
+    "DOCX Editor & Word Editor (Edit Word Documents)",
+    "edits the text of Word files and keeps their layout, images and styles.",
+    "https://github.com/theluckystrike/docx-editor-vscode"
+  ],
+  [
+    "zovo.zovo-edi-viewer",
+    "EDI Viewer & X12 Viewer, EDIFACT Viewer (EDI Parser)",
+    "opens X12 and EDIFACT files as a tree of segments and elements with their names.",
+    "https://github.com/theluckystrike/edi-viewer-vscode"
   ],
   [
     "zovo.zovo-elf-pe-viewer",
@@ -356,6 +386,12 @@ const QUEUED = [
     "Git Commit Graph & History Log (Branches, Compare, Blame)",
     "shows every branch and tag as a commit graph, with search.",
     "https://github.com/theluckystrike/git-commit-graph-vscode"
+  ],
+  [
+    "zovo.zovo-image-editor",
+    "Image Editor & Image Resizer (Crop, Annotate, Convert)",
+    "crops, resizes, rotates and marks up PNG, JPEG and WebP images.",
+    "https://github.com/theluckystrike/image-editor-vscode"
   ],
   [
     "zovo.zovo-intel-hex-viewer",
@@ -404,6 +440,12 @@ const QUEUED = [
     "Spreadsheet Editor for CSV, Excel & XLSX - Edit Large Files, SQL Filter",
     "edits CSV, TSV and Excel files as a spreadsheet, with undo.",
     "https://github.com/theluckystrike/spreadsheet-editor-vscode"
+  ],
+  [
+    "zovo.zovo-spss-stata-viewer",
+    "SPSS Viewer & Stata Viewer (SAV, DTA, XPT Files)",
+    "opens SPSS .sav and Stata .dta files as a table with variable and value labels.",
+    "https://github.com/theluckystrike/spss-stata-viewer-vscode"
   ],
   [
     "zovo.zovo-xml-xpath-tools",
@@ -506,7 +548,24 @@ const PAIRS = [
   ["zovo.zovo-apk-analyzer", "zovo.zip-archive-explorer", 0.03],
   ["zovo.zovo-excel-compare", "zovo.table-viewer-vscode", 0.03],
   ["zovo.zovo-excel-to-markdown", "zovo.table-viewer-vscode", 0.03],
-  ["zovo.zovo-folder-diff", "zovo.zovo-hex-viewer", 0.03]
+  ["zovo.zovo-folder-diff", "zovo.zovo-hex-viewer", 0.03],
+  ["zovo.zovo-docx-editor", "zovo.docx-viewer-vscode", 0.03],
+  ["zovo.zovo-docx-editor", "zovo.pdf-viewer-dark", 0.03],
+  ["zovo.zovo-dbml-viewer", "zovo.sqlite-table-viewer", 0.03],
+  ["zovo.zovo-dbml-viewer", "zovo.zovo-sql-client", 0.03],
+  ["zovo.zovo-dbml-viewer", "zovo.mermaid-viewer", 0.03],
+  ["zovo.zovo-convert-to-markdown", "zovo.docx-viewer-vscode", 0.03],
+  ["zovo.zovo-convert-to-markdown", "zovo.pdf-viewer-dark", 0.03],
+  ["zovo.zovo-convert-to-markdown", "zovo.pptx-slide-viewer", 0.03],
+  ["zovo.zovo-image-editor", "zovo.zovo-svg-viewer", 0.03],
+  ["zovo.zovo-image-editor", "zovo.tiff-viewer", 0.03],
+  ["zovo.zovo-edi-viewer", "zovo.zovo-json-tree-viewer", 0.03],
+  ["zovo.zovo-edi-viewer", "zovo.table-viewer-vscode", 0.03],
+  ["zovo.zovo-spss-stata-viewer", "zovo.table-viewer-vscode", 0.03],
+  ["zovo.zovo-spss-stata-viewer", "zovo.zovo-parquet-viewer", 0.03],
+  ["zovo.zovo-spss-stata-viewer", "zovo.arrow-avro-viewer", 0.03],
+  ["zovo.zovo-can-dbc-viewer", "zovo.zovo-hex-viewer", 0.03],
+  ["zovo.zovo-can-dbc-viewer", "zovo.zovo-vcd-waveform-viewer", 0.03]
 ];
 
 // Ids of the 3 to 5 extensions most related to this one (shared file types and users), best first.
@@ -651,7 +710,8 @@ function moneyLinks(prefix) {
   const c = commandIds(prefix);
   const out = [];
   if (PRO) {
-    out.push({ label: `Zovo Pro, USD ${PRO.usd}`, href: `command:${PRO.getPro}`, title: `Zovo Pro: USD ${PRO.usd} once, for the Pro tools in every Zovo extension` });
+    // CARD2: footerHtml adds the surface argument (["footer"]) so a card checkout from this link is tagged _footer.
+    out.push({ label: `Zovo Pro, USD ${PRO.usd}`, href: `command:${PRO.getPro}`, title: `Zovo Pro: USD ${PRO.usd} once, for the Pro tools in every Zovo extension`, surface: 'footer' });
     if (paypalUrl()) {
       out.push(PRO.payWithPayPal
         ? { label: 'PayPal', href: `command:${PRO.payWithPayPal}`, title: `Pay for Zovo Pro with PayPal (USD ${PRO.usd})` }
@@ -665,7 +725,10 @@ function moneyLinks(prefix) {
 }
 
 const FOOTER_CSS = [
-  '.zovo-support{font-size:11px;line-height:16px;padding:2px 8px;color:var(--vscode-descriptionForeground);opacity:.8;white-space:nowrap}',
+  // CARD2 (CONV4: "Zovo Pro, USD" was cut at a 746 px editor): each link keeps its words together; the line breaks
+  // between links, so "Hide" (last) wraps first.
+  '.zovo-support{font-size:11px;line-height:16px;padding:2px 8px;color:var(--vscode-descriptionForeground);opacity:.8;white-space:normal}',
+  '.zovo-support a{white-space:nowrap}',
   '.zovo-support:hover,.zovo-support:focus-within{opacity:1}',
   '.zovo-support a{color:var(--vscode-textLink-foreground);text-decoration:none}',
   '.zovo-support a:hover,.zovo-support a:focus{text-decoration:underline}',
@@ -688,7 +751,7 @@ function footerHtml(prefix, show, extraClass) {
   return `<div class="${cls}" id="zovo-support">`
     + (reviewUrl(SELF_ID) ? `<a href="${reviewUrl(SELF_ID)}" title="Rate or review this extension on ${STORE === 'openvsx' ? 'Open VSX' : 'the Marketplace'}">Rate</a>` + sep : '')
     + `<a href="command:${c.more}" title="Other free extensions by Zovo">More free viewers</a>` + sep
-    + moneyLinks(prefix).map((l) => `<a href="${l.href}" title="${l.title}">${l.label}</a>` + sep).join('')
+    + moneyLinks(prefix).map((l) => `<a href="${l.href}${l.surface ? '?' + encodeURIComponent(JSON.stringify([l.surface])) : ''}" title="${l.title}">${l.label}</a>` + sep).join('')
     + `<a href="command:workbench.action.openSettings?${settingArg}" title="Hide these links">Hide</a>`
     + '</div>';
 }
@@ -728,7 +791,7 @@ function registerSupport(opts) {
     if (rows.length === 1 && rows[0].link) { await open(rows[0].link.url); return; }
     const pick = await vscode.window.showQuickPick(rows, { placeHolder: 'Pick a way to support the developer' });
     if (!pick) return;
-    if (pick.command) { await vscode.commands.executeCommand(pick.command); return; }
+    if (pick.command) { await vscode.commands.executeCommand(pick.command, 'support'); return; } // CARD2 surface tag
     await open(pick.link.url);
   }
 
