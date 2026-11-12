@@ -21,7 +21,7 @@ Zovo Pro: USD 19 once, for the Pro tools in every Zovo extension. Here it adds C
 What you get:
 
 - The first row becomes the header (or add an empty header with `excelToMarkdown.headerRow`).
-- Columns that hold only numbers are right-aligned, including `1,250`, `$12.50`, `12%` and `(35)`.
+- Columns that hold only numbers are right-aligned, including `1,250`, `12.50`, `12%`, `(35)` and amounts with a currency sign.
 - Pipes (`|`) and backslashes are escaped, so a cell like `A|B` stays in one column.
 - A line break inside a cell becomes `<br>`. Cells with tabs or line breaks, which Excel and Google Sheets wrap in quotes, come out right.
 - `<` and `>` in cells are written as `&lt;` and `&gt;`, so HTML in a cell shows as text when the Markdown is rendered.
