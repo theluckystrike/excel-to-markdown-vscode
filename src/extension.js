@@ -294,7 +294,7 @@ class Provider {
     if (panel.active) active = v;
     panel.onDidChangeViewState(() => { if (panel.active) active = v; else if (active === v && !panel.visible) active = null; });
     panel.onDidDispose(() => { viewers.delete(v); if (active === v) active = null; });
-    panel.webview.onDidReceiveMessage((m) => (reach && reach.onMessage(m) ? undefined : v.onMessage(m)).then(undefined, (e) => v.post({ type: 'notice', text: String((e && e.message) || e) })));
+    panel.webview.onDidReceiveMessage((m) => Promise.resolve(reach && reach.onMessage(m) ? undefined : v.onMessage(m)).then(undefined, (e) => v.post({ type: 'notice', text: String((e && e.message) || e) })));
   }
 }
 
