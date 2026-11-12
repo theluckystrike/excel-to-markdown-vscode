@@ -397,7 +397,8 @@ test('package.json: no default keybinding on Cmd/Ctrl+V, Pro commands hidden by 
   assert.strictEqual(pal['excelToMarkdown.workbookToMarkdown'], 'config.excelToMarkdown.showProTools');
   assert.strictEqual(pal['excelToMarkdown.tablesToXlsx'], 'config.excelToMarkdown.showProTools');
   assert.strictEqual(pal['excelToMarkdown.keepFormats'], 'config.excelToMarkdown.showProTools');
-  assert.ok(pk.displayName.startsWith('Excel to Markdown ') && pk.displayName.length <= 30, pk.displayName);
+  assert.ok(/^Excel to Markdown[: ]/.test(pk.displayName) && pk.displayName.length <= 30, pk.displayName);
+  for (const ed of pk.contributes.customEditors) assert.notStrictEqual(ed.displayName.toLowerCase(), 'excel to markdown table');
   assert.ok(!pk.displayName.toLowerCase().includes('excel to markdown table'));
   assert.notStrictEqual(pk.displayName.toLowerCase(), 'excel to markdown table');
   assert.ok(pk.description.startsWith('Excel to Markdown table'));

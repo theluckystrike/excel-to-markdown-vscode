@@ -1,8 +1,8 @@
 {
   "name": "zovo-excel-to-markdown",
-  "displayName": "Excel to Markdown & CSV Tables",
+  "displayName": "Excel to Markdown: Paste & CSV",
   "description": "Excel to Markdown table converter: paste cells copied from Excel, Google Sheets, Numbers or LibreOffice as a Markdown table, convert CSV to Markdown and back, format tables, and open .xlsx, .xls, .ods and .csv files to copy a sheet or range as Markdown. Offline, no network.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
@@ -45,7 +45,7 @@
     "customEditors": [
       {
         "viewType": "excelToMarkdown.preview",
-        "displayName": "Excel to Markdown Table",
+        "displayName": "Excel to Markdown Preview",
         "selector": [
           {
             "filenamePattern": "*.xlsx"

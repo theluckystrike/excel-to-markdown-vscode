@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.1 (2026-11-12)
+## 0.1.2 (2026-11-13)
 
-- First Marketplace release.
+- First Marketplace release, under the name Excel to Markdown: Paste & CSV.
 - Free: Paste as Markdown Table, CSV/TSV to Markdown and back, Format Markdown Table and the spreadsheet preview with sheet and range, with no limit.
 - Zovo Pro (USD 19 once, every Zovo extension), 3 free tries each: Convert Workbooks to Markdown Files, Save Markdown Tables as an Excel File, and Keep Excel Formats, Links and Merged Cells (now also a command).
 - The spreadsheet preview has a small Pro tools row under its toolbar with the free tries left for each tool and Get Zovo Pro. The × button hides it until VS Code restarts, and it is not shown with Zovo Pro or when `excelToMarkdown.showProTools` is off.

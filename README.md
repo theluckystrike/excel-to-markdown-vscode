@@ -1,4 +1,4 @@
-# Excel to Markdown & CSV Tables
+# Excel to Markdown (Paste & CSV)
 
 Paste cells copied from Excel, Google Sheets, Numbers or LibreOffice into a Markdown file as a clean Markdown table, and turn CSV, TSV and workbook sheets into Markdown tables inside VS Code.
 
